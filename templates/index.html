@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAMSTER FAUCET BOT - TURBO v8.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        :root {
+            --green-primary: #00ff41;
+            --green-dark: #00cc33;
+            --green-glow: #00ff4180;
+            --green-dim: #0a3d0a;
+            --bg-dark: #0a0a0a;
+            --bg-card: #0d1117;
+            --bg-input: #0b1015;
+            --border-green: #00ff4130;
+            --red: #ff3333;
+            --yellow: #ffcc00;
+            --cyan: #00ffff;
+            --magenta: #ff00ff;
+            --blue: #3399ff;
+            --white: #e0e0e0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--green-primary);
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Matrix rain background */
+        #matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.07;
+            pointer-events: none;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0 20px;
+        }
+
+        .logo-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .logo-container img {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 2px solid var(--green-primary);
+            box-shadow: 0 0 30px var(--green-glow), 0 0 60px rgba(0, 255, 65, 0.2);
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 30px var(--green-glow), 0 0 60px rgba(0, 255, 65, 0.2); }
+            50% { box-shadow: 0 0 50px var(--green-glow), 0 0 100px rgba(0, 255, 65, 0.3); }
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: var(--green-primary);
+            text-shadow: 0 0 20px var(--green-glow), 0 0 40px rgba(0, 255, 65, 0.3);
+            letter-spacing: 3px;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--green-dark);
+            letter-spacing: 2px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-green);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--green-primary), transparent);
+        }
+
+        .card-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            color: var(--green-primary);
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title .icon {
+            font-size: 1.1rem;
+        }
+
+        /* Token Input */
+        .token-group {
+            position: relative;
+        }
+
+        .token-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-green);
+            border-radius: 6px;
+            padding: 14px 50px 14px 16px;
+            color: var(--green-primary);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .token-input:focus {
+            border-color: var(--green-primary);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.15);
+        }
+
+        .token-input::placeholder {
+            color: #2a5a2a;
+        }
+
+        .toggle-visibility {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--green-dark);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+        }
+
+        .toggle-visibility:hover {
+            color: var(--green-primary);
+        }
+
+        .token-hint {
+            font-size: 0.75rem;
+            color: #2a5a2a;
+            margin-top: 8px;
+        }
+
+        .token-hint span {
+            color: var(--green-dark);
+        }
+
+        /* Menu Grid */
+        .menu-section-title {
+            font-size: 0.75rem;
+            color: #2a5a2a;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin: 15px 0 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #1a2a1a;
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .menu-btn {
+            background: linear-gradient(135deg, #0d1a0d 0%, #0a140a 100%);
+            border: 1px solid var(--border-green);
+            border-radius: 6px;
+            padding: 14px 16px;
+            color: var(--white);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+        }
+
+        .menu-btn:hover {
+            border-color: var(--green-primary);
+            background: linear-gradient(135deg, #0f2a0f 0%, #0a1a0a 100%);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .menu-btn:active {
+            transform: translateY(0);
+        }
+
+        .menu-btn.active {
+            border-color: var(--green-primary);
+            background: linear-gradient(135deg, #0f3a0f 0%, #0a2a0a 100%);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+        }
+
+        .menu-btn .num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .menu-btn.cat-cycle .num { background: #003300; color: var(--green-primary); }
+        .menu-btn.cat-game .num { background: #332b00; color: var(--yellow); }
+        .menu-btn.cat-special .num { background: #1a0033; color: var(--magenta); }
+        .menu-btn.cat-danger .num { background: #330000; color: var(--red); }
+
+        .menu-btn .label { flex: 1; }
+
+        /* Sub-parameter input */
+        .param-row {
+            display: none;
+            margin-top: 10px;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .param-row.visible {
+            display: flex;
+        }
+
+        .param-input {
+            background: var(--bg-input);
+            border: 1px solid var(--border-green);
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: var(--green-primary);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            outline: none;
+            width: 120px;
+            transition: all 0.3s;
+        }
+
+        .param-input:focus {
+            border-color: var(--green-primary);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.15);
+        }
+
+        .param-label {
+            color: var(--green-dark);
+            font-size: 0.8rem;
+        }
+
+        /* Execute button */
+        .execute-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #003300 0%, #001a00 100%);
+            border: 2px solid var(--green-primary);
+            border-radius: 8px;
+            color: var(--green-primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+            text-transform: uppercase;
+        }
+
+        .execute-btn:hover {
+            background: linear-gradient(135deg, #004d00 0%, #002600 100%);
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+        }
+
+        .execute-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .execute-btn.running {
+            border-color: var(--red);
+            color: var(--red);
+            animation: border-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes border-pulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 51, 51, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(255, 51, 51, 0.4); }
+        }
+
+        /* Console */
+        .console {
+            background: #000000;
+            border: 1px solid var(--border-green);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .console-header {
+            background: #0a0f0a;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-green);
+        }
+
+        .console-header .dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .console-header .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .dot.red { background: #ff5f56; }
+        .dot.yellow { background: #ffbd2e; }
+        .dot.green { background: #27c93f; }
+
+        .console-header .title-text {
+            font-size: 0.75rem;
+            color: #555;
+            letter-spacing: 1px;
+        }
+
+        .console-body {
+            padding: 16px;
+            height: 400px;
+            overflow-y: auto;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        .console-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .console-body::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        .console-body::-webkit-scrollbar-thumb {
+            background: #1a3a1a;
+            border-radius: 3px;
+        }
+
+        .log-line {
+            margin-bottom: 2px;
+            word-break: break-all;
+        }
+
+        .log-line .ts {
+            color: #555;
+        }
+
+        .log-line .tag {
+            font-weight: bold;
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+
+        .tag-OK { color: #00ff41; }
+        .tag-PTS { color: #ff00ff; }
+        .tag-ERR { color: #ff3333; }
+        .tag-WARN { color: #ffcc00; }
+        .tag-AD { color: #3399ff; }
+        .tag-GAME { color: #00ffff; }
+        .tag-SPIN { color: #00ffff; }
+        .tag-TURBO { color: #ff3333; font-weight: 900; }
+        .tag-INFO { color: #aaaaaa; }
+        .tag-RETRY { color: #ff3333; }
+        .tag-WAIT { color: #3399ff; }
+        .tag-TOKEN { color: #ffcc00; }
+        .tag-GIVE { color: #ff00ff; }
+        .tag-FIX { color: #00ff41; }
+
+        .log-line .msg {
+            color: #cccccc;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-green);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--green-primary);
+            text-shadow: 0 0 10px var(--green-glow);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: #555;
+            letter-spacing: 1px;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #2a2a2a;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .container { padding: 10px; }
+            .title { font-size: 1.2rem; }
+            .menu-grid { grid-template-columns: 1fr; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+            .console-body { height: 300px; }
+            .logo-container img { width: 110px; height: 110px; }
+        }
+
+        /* Scanline effect */
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.03) 0px,
+                rgba(0, 0, 0, 0.03) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+        }
+
+        /* Connection indicator */
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.7rem;
+            color: #555;
+            z-index: 100;
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #333;
+        }
+
+        .connection-dot.connected {
+            background: var(--green-primary);
+            box-shadow: 0 0 10px var(--green-glow);
+        }
+    </style>
+</head>
+<body>
+    <div class="scanline"></div>
+    <canvas id="matrix-bg"></canvas>
+
+    <div class="connection-status">
+        <div class="connection-dot" id="connDot"></div>
+        <span id="connText">Desconectado</span>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-container">
+                <img src="/static/img/logo.png" alt="Hamster Turbo Logo">
+            </div>
+            <div class="title">HAMSTER FAUCET BOT</div>
+            <div class="subtitle">TURBO v8.0 &mdash; TESTE RAPIDO</div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-item">
+                <div class="stat-value" id="statPoints">0.00</div>
+                <div class="stat-label">Pontos</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="statCycles">0</div>
+                <div class="stat-label">Ciclos</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="statTasks">0</div>
+                <div class="stat-label">Tarefas OK</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="statAds">0</div>
+                <div class="stat-label">Ads</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="statBlocked">0</div>
+                <div class="stat-label">Blocked</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="statErrors">0</div>
+                <div class="stat-label">Erros</div>
+            </div>
+        </div>
+
+        <!-- Token -->
+        <div class="card">
+            <div class="card-title"><span class="icon">&#x1f511;</span> TOKEN DE ACESSO</div>
+            <div class="token-group">
+                <input type="password" class="token-input" id="tokenInput" placeholder="Cole seu Refresh Token (AMf-...) ou ID Token (eyJ...)">
+                <button class="toggle-visibility" id="toggleToken" onclick="toggleTokenVisibility()">&#x1f441;</button>
+            </div>
+            <div class="token-hint">
+                <span>Refresh Token (AMf-...)</span> = RECOMENDADO (auto-renova) &nbsp;|&nbsp;
+                <span>ID Token (eyJ...)</span> = Expira em 1h
+            </div>
+        </div>
+
+        <!-- Menu -->
+        <div class="card">
+            <div class="card-title"><span class="icon">&#x2261;</span> MENU TURBO v8.0</div>
+
+            <div class="menu-section-title">CICLOS</div>
+            <div class="menu-grid">
+                <button class="menu-btn cat-cycle" data-action="auto" onclick="selectAction(this)">
+                    <span class="num">1</span>
+                    <span class="label">Auto (loop infinito)</span>
+                </button>
+                <button class="menu-btn cat-cycle" data-action="1cycle" onclick="selectAction(this)">
+                    <span class="num">2</span>
+                    <span class="label">1 ciclo</span>
+                </button>
+                <button class="menu-btn cat-cycle" data-action="ncycles" data-needs-param="ncycles" onclick="selectAction(this)">
+                    <span class="num">3</span>
+                    <span class="label">N ciclos</span>
+                </button>
+            </div>
+
+            <div class="menu-section-title">JOGOS</div>
+            <div class="menu-grid">
+                <button class="menu-btn cat-game" data-action="mahjong" data-needs-param="mahjong" onclick="selectAction(this)">
+                    <span class="num">4</span>
+                    <span class="label">Mahjong (1-6)</span>
+                </button>
+                <button class="menu-btn cat-game" data-action="spinner" data-needs-param="spinner" onclick="selectAction(this)">
+                    <span class="num">5</span>
+                    <span class="label">Spinner (1-6)</span>
+                </button>
+                <button class="menu-btn cat-game" data-action="normal" data-needs-param="normal" onclick="selectAction(this)">
+                    <span class="num">6</span>
+                    <span class="label">Normal (1-2)</span>
+                </button>
+                <button class="menu-btn cat-game" data-action="addad" onclick="selectAction(this)">
+                    <span class="num">7</span>
+                    <span class="label">addAd</span>
+                </button>
+            </div>
+
+            <div class="menu-section-title">ESPECIAL</div>
+            <div class="menu-grid">
+                <button class="menu-btn cat-special" data-action="giveaway" onclick="selectAction(this)">
+                    <span class="num">8</span>
+                    <span class="label">Giveaway</span>
+                </button>
+                <button class="menu-btn cat-special" data-action="status" onclick="selectAction(this)">
+                    <span class="num">9</span>
+                    <span class="label">Status</span>
+                </button>
+            </div>
+
+            <!-- Parameter inputs -->
+            <div class="param-row" id="paramNcycles">
+                <span class="param-label">Quantos ciclos?</span>
+                <input type="number" class="param-input" id="inputNcycles" min="1" max="999" value="5" placeholder="N">
+            </div>
+            <div class="param-row" id="paramMahjong">
+                <span class="param-label">Game (1-6):</span>
+                <input type="number" class="param-input" id="inputMahjong" min="1" max="6" value="1" placeholder="1-6">
+            </div>
+            <div class="param-row" id="paramSpinner">
+                <span class="param-label">Spinner (1-6):</span>
+                <input type="number" class="param-input" id="inputSpinner" min="1" max="6" value="1" placeholder="1-6">
+            </div>
+            <div class="param-row" id="paramNormal">
+                <span class="param-label">Normal (1-2):</span>
+                <input type="number" class="param-input" id="inputNormal" min="1" max="2" value="1" placeholder="1-2">
+            </div>
+
+            <button class="execute-btn" id="executeBtn" onclick="executeAction()" disabled>
+                SELECIONE UMA OPCAO
+            </button>
+        </div>
+
+        <!-- Console -->
+        <div class="card" style="padding: 0;">
+            <div class="console">
+                <div class="console-header">
+                    <div class="dots">
+                        <div class="dot red"></div>
+                        <div class="dot yellow"></div>
+                        <div class="dot green"></div>
+                    </div>
+                    <span class="title-text">TERMINAL OUTPUT</span>
+                    <button onclick="clearConsole()" style="background:none;border:1px solid #333;color:#555;padding:3px 10px;border-radius:4px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">LIMPAR</button>
+                </div>
+                <div class="console-body" id="consoleBody">
+                    <div class="log-line"><span class="tag tag-INFO">[SYSTEM]</span> <span class="msg">Aguardando token e selecao de opcao...</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            HAMSTER FAUCET BOT TURBO v8.0 &mdash; Use apenas para TESTES
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════
+        //                    MATRIX RAIN
+        // ═══════════════════════════════════════════════════════
+        const canvas = document.getElementById('matrix-bg');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF';
+        const fontSize = 14;
+        let columns = Math.floor(canvas.width / fontSize);
+        let drops = Array(columns).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00ff41';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(drawMatrix, 50);
+
+        window.addEventListener('resize', () => {
+            columns = Math.floor(canvas.width / fontSize);
+            drops = Array(columns).fill(1);
+        });
+
+        // ═══════════════════════════════════════════════════════
+        //                    SOCKET.IO
+        // ═══════════════════════════════════════════════════════
+        const socket = io();
+        let selectedAction = null;
+        let isRunning = false;
+
+        socket.on('connect', () => {
+            document.getElementById('connDot').classList.add('connected');
+            document.getElementById('connText').textContent = 'Conectado';
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('connDot').classList.remove('connected');
+            document.getElementById('connText').textContent = 'Desconectado';
+        });
+
+        socket.on('log', (data) => {
+            appendLog(data.tag, data.message, data.timestamp);
+        });
+
+        socket.on('stats', (data) => {
+            document.getElementById('statPoints').textContent = data.total_points.toFixed(2);
+            document.getElementById('statCycles').textContent = data.total_cycles;
+            document.getElementById('statTasks').textContent = data.tasks_completed;
+            document.getElementById('statAds').textContent = data.total_ads;
+            document.getElementById('statBlocked').textContent = data.tasks_blocked;
+            document.getElementById('statErrors').textContent = data.errors;
+        });
+
+        socket.on('task_complete', () => {
+            isRunning = false;
+            const btn = document.getElementById('executeBtn');
+            btn.classList.remove('running');
+            if (selectedAction) {
+                btn.textContent = 'EXECUTAR';
+                btn.disabled = false;
+            } else {
+                btn.textContent = 'SELECIONE UMA OPCAO';
+                btn.disabled = true;
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════
+        //                    UI FUNCTIONS
+        // ═══════════════════════════════════════════════════════
+        function toggleTokenVisibility() {
+            const input = document.getElementById('tokenInput');
+            const btn = document.getElementById('toggleToken');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerHTML = '&#x1f512;';
+            } else {
+                input.type = 'password';
+                btn.innerHTML = '&#x1f441;';
+            }
+        }
+
+        function selectAction(el) {
+            // Remove active from all
+            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+
+            selectedAction = el.dataset.action;
+
+            // Hide all param rows
+            document.querySelectorAll('.param-row').forEach(r => r.classList.remove('visible'));
+
+            // Show relevant param
+            const needsParam = el.dataset.needsParam;
+            if (needsParam) {
+                const paramEl = document.getElementById('param' + needsParam.charAt(0).toUpperCase() + needsParam.slice(1));
+                if (paramEl) paramEl.classList.add('visible');
+            }
+
+            // Update button
+            const btn = document.getElementById('executeBtn');
+            if (!isRunning) {
+                btn.textContent = 'EXECUTAR';
+                btn.disabled = false;
+            }
+        }
+
+        function getParam() {
+            if (!selectedAction) return null;
+            if (selectedAction === 'ncycles') return document.getElementById('inputNcycles').value;
+            if (selectedAction === 'mahjong') return document.getElementById('inputMahjong').value;
+            if (selectedAction === 'spinner') return document.getElementById('inputSpinner').value;
+            if (selectedAction === 'normal') return document.getElementById('inputNormal').value;
+            return null;
+        }
+
+        function executeAction() {
+            const btn = document.getElementById('executeBtn');
+
+            if (isRunning) {
+                // Stop
+                socket.emit('stop_bot');
+                btn.textContent = 'PARANDO...';
+                btn.disabled = true;
+                return;
+            }
+
+            const token = document.getElementById('tokenInput').value.trim();
+            if (!token) {
+                appendLog('ERR', 'Insira seu token primeiro!', new Date().toLocaleTimeString());
+                return;
+            }
+
+            if (!selectedAction) {
+                appendLog('ERR', 'Selecione uma opcao do menu!', new Date().toLocaleTimeString());
+                return;
+            }
+
+            isRunning = true;
+            btn.classList.add('running');
+            btn.textContent = 'PARAR';
+
+            socket.emit('start_bot', {
+                token: token,
+                action: selectedAction,
+                param: getParam()
+            });
+        }
+
+        function appendLog(tag, message, timestamp) {
+            const body = document.getElementById('consoleBody');
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            line.innerHTML = `<span class="ts">[${timestamp || ''}]</span> <span class="tag tag-${tag}">[${tag}]</span> <span class="msg">${escapeHtml(message)}</span>`;
+            body.appendChild(line);
+            body.scrollTop = body.scrollHeight;
+
+            // Keep max 500 lines
+            while (body.children.length > 500) {
+                body.removeChild(body.firstChild);
+            }
+        }
+
+        function clearConsole() {
+            const body = document.getElementById('consoleBody');
+            body.innerHTML = '<div class="log-line"><span class="tag tag-INFO">[SYSTEM]</span> <span class="msg">Console limpo.</span></div>';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            const key = e.key;
+            const actions = {
+                '1': 'auto', '2': '1cycle', '3': 'ncycles',
+                '4': 'mahjong', '5': 'spinner', '6': 'normal',
+                '7': 'addad', '8': 'giveaway', '9': 'status'
+            };
+            if (actions[key]) {
+                const btn = document.querySelector(`[data-action="${actions[key]}"]`);
+                if (btn) selectAction(btn);
+            }
+            if (key === 'Enter' && selectedAction && !document.getElementById('executeBtn').disabled) {
+                executeAction();
+            }
+        });
+    </script>
+</body>
+</html>
