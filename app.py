@@ -548,85 +548,88 @@ class HamsterFaucetBot:
     # ─────────────────────────────────────────────────────────
 
     def claim_spinner(self, spinner_num, retry=0):
+        """Spinner com LOOP (sem recursao) e timeout total de 30s"""
         name = f"Spinner {spinner_num}"
         if name not in SPINNER_GAMES:
             self._emit_log("ERR", f"{name} invalido (1-6)")
             return False
         if self._is_on_cooldown(name):
             return False
-        # Verificar stop entre retries
         if self.stop_requested:
             return False
 
         cfg = SPINNER_GAMES[name]
-        points = round(random.uniform(5000, 20000), 14)
+        max_retries = MAX_RETRIES_SPINNER
+        timeout_total = 30  # Maximo 30 segundos por spinner
+        start_time = time.time()
+        attempt = 0
 
-        # v8.0: garantir Block_List antes
-        self._ensure_block_list(context=name)
+        while attempt <= max_retries:
+            # Checar timeout total
+            if time.time() - start_time > timeout_total:
+                self._emit_log("SKIP", f"{name}: Timeout de {timeout_total}s. Pulando!")
+                break
+            # Checar stop
+            if self.stop_requested:
+                return False
 
-        # addAd antes do claim
-        self._quick_add_ad(context=f"{name}" + (f" retry {retry}" if retry > 0 else ""))
+            points = round(random.uniform(5000, 20000), 14)
 
-        self._emit_log("SPIN", f"{name}: addPointsI ({points:.2f} pts)..." + (f" (retry {retry})" if retry > 0 else ""))
+            # Block_List + Ad
+            self._ensure_block_list(context=name)
+            self._quick_add_ad(context=f"{name}" + (f" retry {attempt}" if attempt > 0 else ""))
 
-        code, data = self._post("/amar/addPointsI", {
-            "app": APP_NAME,
-            "eventName": cfg["eventName"],
-            "eventType": cfg["eventType"],
-            "timerTitle": cfg["timerTitle"],
-            "timer": cfg["timer"],
-            "version": APP_VERSION,
-            "points": points,
-        })
+            self._emit_log("SPIN", f"{name}: addPointsI ({points:.2f} pts)..." + (f" (tentativa {attempt + 1}/{max_retries + 1})" if attempt > 0 else ""))
 
-        msg = data.get("message", "")
+            code, data = self._post("/amar/addPointsI", {
+                "app": APP_NAME,
+                "eventName": cfg["eventName"],
+                "eventType": cfg["eventType"],
+                "timerTitle": cfg["timerTitle"],
+                "timer": cfg["timer"],
+                "version": APP_VERSION,
+                "points": points,
+            })
 
-        # SUCESSO
-        if code == 200 and data.get("status") and "Added" in msg:
-            self._emit_log("PTS", f"{name}: +{points:.2f} pts PERMANENTES!" + (f" (tentativa {retry + 1})" if retry > 0 else ""))
-            self._set_cooldown(name)
-            with self._lock:
-                self.total_points += points
-                self.tasks_completed += 1
-                self.stats["spinner_ok"] += 1
-            self._emit_stats()
-            return True
+            msg = data.get("message", "")
 
-        # Cooldown do servidor
-        if code == 429:
-            self._emit_log("WARN", f"{name}: Cooldown no servidor")
-            self._set_cooldown(name)
-            with self._lock:
-                self.stats["spinner_fail"] += 1
-            self._emit_stats()
-            return False
+            # SUCESSO
+            if code == 200 and data.get("status") and "Added" in msg:
+                self._emit_log("PTS", f"{name}: +{points:.2f} pts PERMANENTES!" + (f" (tentativa {attempt + 1})" if attempt > 0 else ""))
+                self._set_cooldown(name)
+                with self._lock:
+                    self.total_points += points
+                    self.tasks_completed += 1
+                    self.stats["spinner_ok"] += 1
+                self._emit_stats()
+                return True
 
-        # Block_List NOT_FOUND ou genérico - retry até MAX_RETRIES_SPINNER
-        if "Block_List" in msg:
-            with self._lock:
-                self.tasks_blocked += 1
-            if retry < MAX_RETRIES_SPINNER and not self.stop_requested:
-                self._emit_log("RETRY", f"{name}: Block_List. Forcando... ({retry + 1}/{MAX_RETRIES_SPINNER})")
-                self._ensure_block_list(context=f"{name} retry")
-                time.sleep(random.uniform(0.5, 1.5))
-                return self.claim_spinner(spinner_num, retry=retry + 1)
-            else:
-                self._emit_log("SKIP", f"{name}: Falhou apos {retry} tentativas. Pulando...")
+            # Cooldown do servidor - parar imediatamente
+            if code == 429:
+                self._emit_log("WARN", f"{name}: Cooldown no servidor")
                 self._set_cooldown(name)
                 with self._lock:
                     self.stats["spinner_fail"] += 1
                 self._emit_stats()
                 return False
 
-        # Outro erro
-        if retry < MAX_RETRIES_SPINNER and not self.stop_requested:
-            self._emit_log("RETRY", f"{name}: Erro HTTP {code}. Retry ({retry + 1}/{MAX_RETRIES_SPINNER})")
-            time.sleep(random.uniform(0.5, 1.5))
-            return self.claim_spinner(spinner_num, retry=retry + 1)
+            # Block_List ou outro erro - tentar novamente
+            if "Block_List" in msg:
+                with self._lock:
+                    self.tasks_blocked += 1
+                self._emit_log("RETRY", f"{name}: Block_List. Tentativa {attempt + 1}/{max_retries + 1}")
+            else:
+                self._emit_log("RETRY", f"{name}: HTTP {code}. Tentativa {attempt + 1}/{max_retries + 1}")
 
-        self._emit_log("SKIP", f"{name}: HTTP {code} - Pulando apos {retry} tentativas")
+            attempt += 1
+            if attempt <= max_retries:
+                time.sleep(random.uniform(0.3, 1.0))
+
+        # Esgotou tentativas ou timeout
+        elapsed = time.time() - start_time
+        self._emit_log("SKIP", f"{name}: Falhou apos {attempt} tentativas ({elapsed:.0f}s). Pulando!")
+        self._set_cooldown(name)
         with self._lock:
-            self.errors += 1
             self.stats["spinner_fail"] += 1
         self._emit_stats()
         return False
