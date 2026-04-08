@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-HAMSTER FAUCET BOT TURBO v8.0 - Web Interface
+HAMSTER FAUCET BOT TURBO v8.0 - Web Interface (PERFORMANCE OPTIMIZED)
 Backend Flask com WebSocket (Flask-SocketIO) para execução em tempo real.
 """
 
@@ -18,6 +18,8 @@ import uuid
 import re
 import hashlib
 import requests as http_requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, abort, make_response, Response
@@ -25,13 +27,14 @@ from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'hamster-turbo-v8-secret')
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet',
+                    ping_timeout=120, ping_interval=25,
+                    max_http_buffer_size=1024*1024)
 
 # ═══════════════════════════════════════════════════════════════
 #                    PROTEÇÃO ANTI-SCRAPING
 # ═══════════════════════════════════════════════════════════════
 
-# Lista de User-Agents de bots/scrapers conhecidos
 BLOCKED_BOTS = [
     'wget', 'curl', 'httrack', 'saveweb', 'webzip', 'offline',
     'teleport', 'webcopy', 'scrapy', 'python-requests', 'httpx',
@@ -51,21 +54,18 @@ BLOCKED_BOTS = [
     'saveweb2zip', 'webarchive', 'wayback',
 ]
 
-# Rate limiting simples em memória
 rate_limit_store = {}
-RATE_LIMIT_WINDOW = 60  # segundos
-RATE_LIMIT_MAX = 30  # requests por janela
+RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_MAX = 30
 
 
 def is_bot(user_agent):
-    """Verifica se o User-Agent é de um bot/scraper conhecido."""
     if not user_agent:
         return True
     ua_lower = user_agent.lower()
     for bot in BLOCKED_BOTS:
         if bot in ua_lower:
             return True
-    # Verificar se não tem User-Agent de navegador real
     browser_indicators = ['mozilla', 'chrome', 'safari', 'firefox', 'edge', 'opera']
     if not any(b in ua_lower for b in browser_indicators):
         return True
@@ -73,11 +73,9 @@ def is_bot(user_agent):
 
 
 def check_rate_limit(ip):
-    """Rate limiting por IP."""
     now = time.time()
     if ip not in rate_limit_store:
         rate_limit_store[ip] = []
-    # Limpar entradas antigas
     rate_limit_store[ip] = [t for t in rate_limit_store[ip] if now - t < RATE_LIMIT_WINDOW]
     if len(rate_limit_store[ip]) >= RATE_LIMIT_MAX:
         return False
@@ -85,38 +83,25 @@ def check_rate_limit(ip):
     return True
 
 
-# Gerar nonce dinâmico para CSP
 def generate_nonce():
     return base64.b64encode(os.urandom(16)).decode('utf-8')
 
 
 @app.before_request
 def security_middleware():
-    """Middleware de segurança que roda antes de cada request."""
-    # Permitir WebSocket e static files
     if request.path.startswith('/socket.io') or request.path.startswith('/static/'):
         return
-
     user_agent = request.headers.get('User-Agent', '')
-
-    # 1. Bloquear bots/scrapers
     if is_bot(user_agent):
-        # Retornar página falsa/vazia para confundir scrapers
         return Response(
             '<html><head><title>403</title></head><body><h1>Access Denied</h1></body></html>',
-            status=403,
-            content_type='text/html'
+            status=403, content_type='text/html'
         )
-
-    # 2. Rate limiting
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     if client_ip:
         client_ip = client_ip.split(',')[0].strip()
     if not check_rate_limit(client_ip):
         return Response('Too Many Requests', status=429)
-
-    # 3. Bloquear se vier de iframe (clickjacking)
-    # Verificar Sec-Fetch headers (navegadores modernos)
     sec_fetch_dest = request.headers.get('Sec-Fetch-Dest', '')
     if sec_fetch_dest in ['iframe', 'embed', 'object']:
         return Response('Embedding not allowed', status=403)
@@ -124,8 +109,6 @@ def security_middleware():
 
 @app.after_request
 def add_security_headers(response):
-    """Adicionar headers de segurança em todas as respostas."""
-    # Anti-iframe / Anti-embedding
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
@@ -138,35 +121,22 @@ def add_security_headers(response):
         "base-uri 'self'; "
         "form-action 'self';"
     )
-
-    # Prevenir MIME sniffing
     response.headers['X-Content-Type-Options'] = 'nosniff'
-
-    # XSS Protection
     response.headers['X-XSS-Protection'] = '1; mode=block'
-
-    # Referrer Policy - não vazar URLs
     response.headers['Referrer-Policy'] = 'no-referrer'
-
-    # Permissions Policy - restringir APIs do navegador
     response.headers['Permissions-Policy'] = (
         'camera=(), microphone=(), geolocation=(), '
         'payment=(), usb=(), magnetometer=(), gyroscope=()'
     )
-
-    # Strict Transport Security
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-
-    # Anti-cache para conteúdo dinâmico (dificulta cache de scrapers)
     if request.path == '/':
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
-
     return response
 
 # ═══════════════════════════════════════════════════════════════
-#                      CONFIGURAÇÕES
+#                      CONFIGURAÇÕES (TURBO OPTIMIZED)
 # ═══════════════════════════════════════════════════════════════
 
 BASE_URL = "https://expressapi-2rffgzjdzq-uc.a.run.app"
@@ -183,12 +153,14 @@ HEADERS = {
     "accept-encoding": "gzip",
 }
 
-DELAY_ENTRE_TAREFAS = (1, 3)
-DELAY_APOS_AD = (1, 2)
-RETRY_BLOCK_DELAY = (5, 15)
+# TURBO OPTIMIZED: Delays mínimos para máxima velocidade
+DELAY_ENTRE_TAREFAS = (0.5, 1.5)      # Reduzido de (1, 3)
+DELAY_APOS_AD = (0.3, 0.8)            # Reduzido de (1, 2)
+RETRY_BLOCK_DELAY = (2, 5)            # Reduzido de (5, 15)
 MAX_RETRIES_BLOCK = 3
 MIN_TASKS_TO_START_CYCLE = 3
 TOKEN_REFRESH_MARGIN = 300
+HTTP_TIMEOUT = 10                      # Timeout mais curto para requests
 
 MAHJONG_GAMES = {
     f"Game {i}": {
@@ -261,15 +233,37 @@ def refresh_id_token(refresh_token):
         resp = http_requests.post(FIREBASE_TOKEN_URL, json={
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
-        }, headers={"Content-Type": "application/json"}, timeout=15)
+        }, headers={"Content-Type": "application/json"}, timeout=HTTP_TIMEOUT)
         data = resp.json()
         return data.get("id_token"), data.get("refresh_token", "")
     except Exception as e:
         return None, None
 
 
+def create_optimized_session():
+    """Cria uma sessão HTTP otimizada com connection pooling e retry."""
+    session = http_requests.Session()
+    session.headers.update(HEADERS)
+
+    # Connection pooling: reutiliza conexões TCP
+    adapter = HTTPAdapter(
+        pool_connections=10,
+        pool_maxsize=20,
+        max_retries=Retry(
+            total=2,
+            backoff_factor=0.3,
+            status_forcelist=[500, 502, 503],
+            allowed_methods=["POST"],
+        ),
+    )
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+
+    return session
+
+
 # ═══════════════════════════════════════════════════════════════
-#                    BOT PRINCIPAL (Web Version)
+#                    BOT PRINCIPAL (Web Version - OPTIMIZED)
 # ═══════════════════════════════════════════════════════════════
 
 class HamsterFaucetBot:
@@ -281,8 +275,8 @@ class HamsterFaucetBot:
         self.photo_url = photo_url or get_token_info(auth_token).get("picture", "")
         self.session_id = session_id
 
-        self.http_session = http_requests.Session()
-        self.http_session.headers.update(HEADERS)
+        # Sessão HTTP otimizada com connection pooling
+        self.http_session = create_optimized_session()
 
         self.cooldowns = {}
         self.total_points = 0.0
@@ -303,6 +297,7 @@ class HamsterFaucetBot:
             "ads_ok": 0, "ads_fail": 0,
         }
         self._lock = threading.Lock()
+        self._stats_throttle = 0  # Throttle stats emission
 
     def _emit_log(self, tag, msg):
         ts = datetime.now().strftime("%H:%M:%S")
@@ -313,7 +308,12 @@ class HamsterFaucetBot:
             'session_id': self.session_id
         }, room=self.session_id)
 
-    def _emit_stats(self):
+    def _emit_stats(self, force=False):
+        """Emit stats com throttling para não sobrecarregar o WebSocket."""
+        now = time.time()
+        if not force and (now - self._stats_throttle) < 0.5:
+            return
+        self._stats_throttle = now
         socketio.emit('stats', {
             'total_points': round(self.total_points, 2),
             'total_ads': self.total_ads,
@@ -330,7 +330,11 @@ class HamsterFaucetBot:
     def _post(self, endpoint, payload):
         payload["authToken"] = self.auth_token
         try:
-            resp = self.http_session.post(f"{BASE_URL}{endpoint}", json=payload, timeout=15)
+            resp = self.http_session.post(
+                f"{BASE_URL}{endpoint}",
+                json=payload,
+                timeout=HTTP_TIMEOUT
+            )
             return resp.status_code, resp.json()
         except http_requests.exceptions.Timeout:
             return 0, {"message": "Timeout"}
@@ -357,12 +361,12 @@ class HamsterFaucetBot:
     def _count_available(self):
         now = datetime.now()
         count = 0
-        for name in ALL_TASK_NAMES:
-            with self._lock:
+        with self._lock:
+            for name in ALL_TASK_NAMES:
                 if name in self.cooldowns:
                     if (self.cooldowns[name] - now).total_seconds() > 0:
                         continue
-            count += 1
+                count += 1
         return count
 
     def _auto_refresh_token(self):
@@ -403,7 +407,12 @@ class HamsterFaucetBot:
             self._emit_log("ERR", "FALHA ao renovar token!")
             return False
 
+    # ─────────────────────────────────────────────────────────
+    #   TURBO: addAd rápido (sem simulação de vídeo)
+    # ─────────────────────────────────────────────────────────
+
     def _quick_add_ad(self, context=""):
+        """TURBO: Chama addAd direto sem simular vídeo."""
         code, data = self._post("/amar/addAd", {
             "app": APP_NAME,
             "version": APP_VERSION,
@@ -421,7 +430,12 @@ class HamsterFaucetBot:
                 self.stats["ads_fail"] += 1
             return False
 
+    # ─────────────────────────────────────────────────────────
+    #   v8.0: Garantir Block_List antes de cada spinner
+    # ─────────────────────────────────────────────────────────
+
     def _ensure_block_list(self, context=""):
+        """v8.0: Chama checkIfUserAlreadyExist para garantir Block_List."""
         code, data = self._post("/amar/checkIfUserAlreadyExist", {
             "app": APP_NAME,
             "version": APP_VERSION,
@@ -430,8 +444,12 @@ class HamsterFaucetBot:
             self._emit_log("FIX", f"Block_List OK ({context})")
         else:
             self._emit_log("WARN", f"checkIfUserAlreadyExist falhou: {code} ({context})")
-        time.sleep(1)
+        time.sleep(0.5)  # Reduzido de 1s para 0.5s
         return code == 200
+
+    # ─────────────────────────────────────────────────────────
+    #   ENDPOINTS
+    # ─────────────────────────────────────────────────────────
 
     def add_ad(self):
         self._emit_log("AD", "Registrando anuncio...")
@@ -444,14 +462,18 @@ class HamsterFaucetBot:
             with self._lock:
                 self.total_ads += 1
                 self.stats["ads_ok"] += 1
-            self._emit_stats()
+            self._emit_stats(force=True)
             return True
         else:
             self._emit_log("ERR", f"addAd: HTTP {code} - {data.get('message', '')}")
             with self._lock:
                 self.stats["ads_fail"] += 1
-            self._emit_stats()
+            self._emit_stats(force=True)
             return False
+
+    # ─────────────────────────────────────────────────────────
+    #   MAHJONG: addAd -> addPointsR (points=0, reward fixo)
+    # ─────────────────────────────────────────────────────────
 
     def claim_mahjong(self, game_num, retry=0):
         name = f"Game {game_num}"
@@ -519,6 +541,11 @@ class HamsterFaucetBot:
             self._emit_stats()
             return False
 
+    # ─────────────────────────────────────────────────────────
+    #   SPINNER v8.0: checkUser -> addAd -> addPointsI
+    #   (pontos PERMANENTES direto, sem addPointsR)
+    # ─────────────────────────────────────────────────────────
+
     def claim_spinner(self, spinner_num, retry=0):
         name = f"Spinner {spinner_num}"
         if name not in SPINNER_GAMES:
@@ -530,13 +557,16 @@ class HamsterFaucetBot:
         cfg = SPINNER_GAMES[name]
         points = round(random.uniform(5000, 20000), 14)
 
+        # v8.0: SEMPRE garantir Block_List antes de cada spinner
         self._ensure_block_list(context=name)
 
+        # addAd antes do claim
         if retry == 0:
             self._quick_add_ad(context=name)
 
         self._emit_log("SPIN", f"{name}: addPointsI ({points:.2f} pts)..." + (f" (retry {retry})" if retry > 0 else ""))
 
+        # addPointsI direto = pontos PERMANENTES
         code, data = self._post("/amar/addPointsI", {
             "app": APP_NAME,
             "eventName": cfg["eventName"],
@@ -549,6 +579,7 @@ class HamsterFaucetBot:
 
         msg = data.get("message", "")
 
+        # SUCESSO
         if code == 200 and data.get("status") and "Added" in msg:
             self._emit_log("PTS", f"{name}: +{points:.2f} pts PERMANENTES!")
             self._set_cooldown(name)
@@ -559,6 +590,7 @@ class HamsterFaucetBot:
             self._emit_stats()
             return True
 
+        # Cooldown
         if code == 429:
             self._emit_log("WARN", f"{name}: Cooldown no servidor")
             self._set_cooldown(name)
@@ -567,11 +599,12 @@ class HamsterFaucetBot:
             self._emit_stats()
             return False
 
+        # Block_List NOT_FOUND
         if "NOT_FOUND" in msg and "Block_List" in msg:
             if retry < MAX_RETRIES_BLOCK:
                 self._emit_log("RETRY", f"{name}: Block_List NOT_FOUND. Recriando... ({retry + 1}/{MAX_RETRIES_BLOCK})")
                 self._ensure_block_list(context=f"{name} retry")
-                time.sleep(random.randint(2, 5))
+                time.sleep(random.randint(1, 3))  # Reduzido de (2, 5)
                 self._quick_add_ad(context=f"{name} retry")
                 return self.claim_spinner(spinner_num, retry=retry + 1)
             else:
@@ -583,6 +616,7 @@ class HamsterFaucetBot:
                 self._emit_stats()
                 return False
 
+        # Block_List genérico
         if "Block_List" in msg:
             with self._lock:
                 self.tasks_blocked += 1
@@ -601,12 +635,17 @@ class HamsterFaucetBot:
                 self._emit_stats()
                 return False
 
+        # Outro erro
         self._emit_log("ERR", f"{name}: HTTP {code} - {msg}")
         with self._lock:
             self.errors += 1
             self.stats["spinner_fail"] += 1
         self._emit_stats()
         return False
+
+    # ─────────────────────────────────────────────────────────
+    #   NORMAL GAME: addAd -> addNormalGamePointsWithInterval
+    # ─────────────────────────────────────────────────────────
 
     def claim_normal_game(self, game_num, retry=0):
         name = f"Normal Game {game_num}"
@@ -675,6 +714,10 @@ class HamsterFaucetBot:
             self._emit_stats()
             return False
 
+    # ─────────────────────────────────────────────────────────
+    #   GIVEAWAY
+    # ─────────────────────────────────────────────────────────
+
     def join_giveaway(self):
         if self.giveaway_joined:
             self._emit_log("INFO", "Ja inscrito no Giveaway!")
@@ -691,45 +734,47 @@ class HamsterFaucetBot:
         if code == 200 and data.get("status"):
             self._emit_log("OK", f"Giveaway: {data.get('message', 'Inscrito!')}")
             self.giveaway_joined = True
-            self._emit_stats()
+            self._emit_stats(force=True)
             return True
         else:
             self._emit_log("ERR", f"Giveaway: HTTP {code} - {data.get('message', '')}")
-            self._emit_stats()
+            self._emit_stats(force=True)
             return False
+
+    # ─────────────────────────────────────────────────────────
+    #   CICLO COMPLETO (TURBO OPTIMIZED)
+    # ─────────────────────────────────────────────────────────
 
     def _get_pending_tasks(self):
         tasks = []
         now = datetime.now()
-        for i in range(1, 7):
-            name = f"Game {i}"
-            with self._lock:
+        with self._lock:
+            for i in range(1, 7):
+                name = f"Game {i}"
                 if name in self.cooldowns:
                     if (self.cooldowns[name] - now).total_seconds() > 0:
                         continue
                     else:
                         del self.cooldowns[name]
-            tasks.append({"name": name, "type": "mahjong", "num": i})
+                tasks.append({"name": name, "type": "mahjong", "num": i})
 
-        for i in range(1, 3):
-            name = f"Normal Game {i}"
-            with self._lock:
+            for i in range(1, 3):
+                name = f"Normal Game {i}"
                 if name in self.cooldowns:
                     if (self.cooldowns[name] - now).total_seconds() > 0:
                         continue
                     else:
                         del self.cooldowns[name]
-            tasks.append({"name": name, "type": "normal", "num": i})
+                tasks.append({"name": name, "type": "normal", "num": i})
 
-        for i in range(1, 7):
-            name = f"Spinner {i}"
-            with self._lock:
+            for i in range(1, 7):
+                name = f"Spinner {i}"
                 if name in self.cooldowns:
                     if (self.cooldowns[name] - now).total_seconds() > 0:
                         continue
                     else:
                         del self.cooldowns[name]
-            tasks.append({"name": name, "type": "spinner", "num": i})
+                tasks.append({"name": name, "type": "spinner", "num": i})
 
         return tasks
 
@@ -759,6 +804,7 @@ class HamsterFaucetBot:
             self._emit_log("WARN", f"{cooldown_count} tarefas em cooldown (pulando)")
 
         total_executed = 0
+        # Ordem: Mahjong -> Normal -> Spinner (spinner por último para Block_List)
         random.shuffle(tasks)
         tasks.sort(key=lambda t: {"mahjong": 0, "normal": 1, "spinner": 2}[t["type"]])
 
@@ -790,8 +836,12 @@ class HamsterFaucetBot:
         if not self.giveaway_joined:
             self.join_giveaway()
 
-        self._emit_stats()
+        self._emit_stats(force=True)
         return total_executed
+
+    # ─────────────────────────────────────────────────────────
+    #              LOOP AUTOMÁTICO (OPTIMIZED)
+    # ─────────────────────────────────────────────────────────
 
     def run_auto(self, cycles=0):
         self.running = True
@@ -804,12 +854,12 @@ class HamsterFaucetBot:
         has_refresh = "SIM" if self.refresh_token else "NAO"
 
         self._emit_log("TURBO", "=" * 55)
-        self._emit_log("TURBO", "HAMSTER FAUCET - MODO TURBO v8.0")
+        self._emit_log("TURBO", "HAMSTER FAUCET - MODO TURBO v8.0 (OPTIMIZED)")
         self._emit_log("TURBO", "=" * 55)
         self._emit_log("INFO", "Fluxo Spinner: checkUser -> addAd -> addPointsI (PERMANENTE)")
         self._emit_log("INFO", "Fluxo Mahjong: addAd -> addPointsR (points=0)")
         self._emit_log("INFO", "Fluxo Normal:  addAd -> addNormalGamePointsWithInterval")
-        self._emit_log("INFO", f"Delays: 1-3s entre tarefas | ~2-3 min/ciclo")
+        self._emit_log("INFO", f"Delays: 0.5-1.5s entre tarefas | ~1-2 min/ciclo")
         self._emit_log("TURBO", "=" * 55)
         self._emit_log("INFO", f"Usuario: {self.user_name or 'N/A'} ({info.get('email', 'N/A')})")
         self._emit_log("INFO", f"Token expira: {expiry_str} | Auto-refresh: {has_refresh}")
@@ -842,6 +892,7 @@ class HamsterFaucetBot:
         self.running = False
 
     def _wait_next_smart(self):
+        """Espera inteligente otimizada - verifica a cada 2s em vez de 1s."""
         with self._lock:
             if not self.cooldowns:
                 return
@@ -866,66 +917,77 @@ class HamsterFaucetBot:
 
         target_task, target_time = sorted_cds[target_idx]
         wait = max(0, (target_time - now).total_seconds())
-        wait += random.randint(5, 15)
+        wait += random.randint(3, 8)  # Reduzido de (5, 15)
 
         self._emit_log("WAIT", f"Esperando {int(wait // 60)}m {int(wait % 60)}s...")
 
+        # Emitir progresso a cada 10 segundos em vez de cada 1 segundo
         total = int(wait)
-        for restante in range(total, 0, -1):
-            if self.stop_requested:
-                return
-            time.sleep(1)
+        elapsed = 0
+        check_interval = 5  # Verificar a cada 5 segundos
 
-            if restante % 60 == 0 and self.refresh_token:
+        while elapsed < total and not self.stop_requested:
+            sleep_time = min(check_interval, total - elapsed)
+            time.sleep(sleep_time)
+            elapsed += sleep_time
+
+            # Emitir progresso a cada 30 segundos
+            if elapsed % 30 == 0:
+                remaining = total - elapsed
+                m, s = divmod(int(remaining), 60)
+                self._emit_log("WAIT", f"Restam {m}m {s}s...")
+
+            # Verificar token a cada 60 segundos
+            if elapsed % 60 == 0 and self.refresh_token:
                 self._auto_refresh_token()
 
+            # Verificar se já tem tarefas suficientes
             if self._count_available() >= MIN_TASKS_TO_START_CYCLE:
+                self._emit_log("OK", "Tarefas disponiveis! Iniciando proximo ciclo...")
                 return
 
+    # ─────────────────────────────────────────────────────────
+    #   STATUS & SUMMARY
+    # ─────────────────────────────────────────────────────────
+
     def get_status(self):
-        status_data = {
-            "mahjong": [],
-            "normal": [],
-            "spinner": [],
-        }
+        status_data = {"mahjong": [], "normal": [], "spinner": []}
         now = datetime.now()
 
-        for i in range(1, 7):
-            name = f"Game {i}"
-            with self._lock:
+        with self._lock:
+            for i in range(1, 7):
+                name = f"Game {i}"
                 if name in self.cooldowns:
                     rest = (self.cooldowns[name] - now).total_seconds()
                     if rest > 0:
                         m, s = divmod(int(rest), 60)
                         status_data["mahjong"].append({"name": name, "status": "cooldown", "remaining": f"{m}m {s}s"})
                         continue
-            status_data["mahjong"].append({"name": name, "status": "ok", "remaining": ""})
+                status_data["mahjong"].append({"name": name, "status": "ok", "remaining": ""})
 
-        for i in range(1, 3):
-            name = f"Normal Game {i}"
-            with self._lock:
+            for i in range(1, 3):
+                name = f"Normal Game {i}"
                 if name in self.cooldowns:
                     rest = (self.cooldowns[name] - now).total_seconds()
                     if rest > 0:
                         m, s = divmod(int(rest), 60)
                         status_data["normal"].append({"name": name, "status": "cooldown", "remaining": f"{m}m {s}s"})
                         continue
-            status_data["normal"].append({"name": name, "status": "ok", "remaining": ""})
+                status_data["normal"].append({"name": name, "status": "ok", "remaining": ""})
 
-        for i in range(1, 7):
-            name = f"Spinner {i}"
-            with self._lock:
+            for i in range(1, 7):
+                name = f"Spinner {i}"
                 if name in self.cooldowns:
                     rest = (self.cooldowns[name] - now).total_seconds()
                     if rest > 0:
                         m, s = divmod(int(rest), 60)
                         status_data["spinner"].append({"name": name, "status": "cooldown", "remaining": f"{m}m {s}s"})
                         continue
-            status_data["spinner"].append({"name": name, "status": "ok", "remaining": ""})
+                status_data["spinner"].append({"name": name, "status": "ok", "remaining": ""})
 
-        self._emit_log("INFO", "═" * 50)
+        self._emit_log("INFO", "=" * 50)
         self._emit_log("INFO", "STATUS")
-        self._emit_log("INFO", "═" * 50)
+        self._emit_log("INFO", "=" * 50)
         for cat_name, items in [("MAHJONG (1-6)", status_data["mahjong"]), ("NORMAL (1-2)", status_data["normal"]), ("SPINNER (1-6)", status_data["spinner"])]:
             self._emit_log("INFO", f"  {cat_name}:")
             for item in items:
@@ -934,16 +996,16 @@ class HamsterFaucetBot:
                 else:
                     self._emit_log("WAIT", f"    {item['name']}: {item['remaining']}")
 
-        self._emit_log("INFO", "─" * 50)
+        self._emit_log("INFO", "-" * 50)
         self._emit_log("PTS", f"Pontos: {self.total_points:.2f}")
         self._emit_log("INFO", f"OK: {self.tasks_completed} | Block: {self.tasks_blocked} | Ads: {self.total_ads}")
-        self._emit_stats()
+        self._emit_stats(force=True)
 
     def _emit_summary(self):
         elapsed = str(datetime.now() - self.start_time).split('.')[0]
-        self._emit_log("TURBO", "═" * 50)
+        self._emit_log("TURBO", "=" * 50)
         self._emit_log("TURBO", "RESUMO FINAL (TURBO v8.0)")
-        self._emit_log("TURBO", "═" * 50)
+        self._emit_log("TURBO", "=" * 50)
         self._emit_log("PTS", f"Pontos: {self.total_points:.2f}")
         self._emit_log("INFO", f"Ciclos: {self.total_cycles}")
         self._emit_log("OK", f"Completou: {self.tasks_completed}")
@@ -956,8 +1018,8 @@ class HamsterFaucetBot:
         self._emit_log("INFO", f"Mahjong: {self.stats['mahjong_ok']} OK / {self.stats['mahjong_fail']} Fail")
         self._emit_log("INFO", f"Normal: {self.stats['normal_ok']} OK / {self.stats['normal_fail']} Fail")
         self._emit_log("INFO", f"Spinner: {self.stats['spinner_ok']} OK / {self.stats['spinner_fail']} Fail")
-        self._emit_log("TURBO", "═" * 50)
-        self._emit_stats()
+        self._emit_log("TURBO", "=" * 50)
+        self._emit_stats(force=True)
 
         socketio.emit('task_complete', {'session_id': self.session_id}, room=self.session_id)
 
@@ -1015,7 +1077,7 @@ def handle_start_bot(data):
     # Stop existing bot if any
     if session_id in active_sessions:
         active_sessions[session_id].stop_requested = True
-        time.sleep(1)
+        time.sleep(0.5)  # Reduzido de 1s
 
     bot = HamsterFaucetBot(
         auth_token=auth_token,
@@ -1033,24 +1095,23 @@ def handle_start_bot(data):
                 if executed >= 0:
                     bot._emit_log("PTS", f"Ciclo: {executed} tarefas")
                 bot._emit_summary()
-                socketio.emit('task_complete', {'session_id': session_id}, room=session_id)
             elif action == "ncycles":
                 n = int(param) if param else 1
                 bot.run_auto(cycles=n)
             elif action == "mahjong":
                 g = int(param) if param else 1
                 bot.claim_mahjong(g)
-                bot._emit_stats()
+                bot._emit_stats(force=True)
                 socketio.emit('task_complete', {'session_id': session_id}, room=session_id)
             elif action == "spinner":
                 s = int(param) if param else 1
                 bot.claim_spinner(s)
-                bot._emit_stats()
+                bot._emit_stats(force=True)
                 socketio.emit('task_complete', {'session_id': session_id}, room=session_id)
             elif action == "normal":
                 g = int(param) if param else 1
                 bot.claim_normal_game(g)
-                bot._emit_stats()
+                bot._emit_stats(force=True)
                 socketio.emit('task_complete', {'session_id': session_id}, room=session_id)
             elif action == "addad":
                 bot.add_ad()
@@ -1065,8 +1126,7 @@ def handle_start_bot(data):
             bot._emit_log("ERR", f"Erro: {e}")
             socketio.emit('task_complete', {'session_id': session_id}, room=session_id)
 
-    thread = threading.Thread(target=run_action, daemon=True)
-    thread.start()
+    socketio.start_background_task(run_action)
 
 
 @socketio.on('stop_bot')
