@@ -594,17 +594,17 @@
 
             <div class="menu-section-title">JOGOS</div>
             <div class="menu-grid">
-                <button class="menu-btn cat-game" data-action="mahjong" data-needs-param="mahjong">
+                <button class="menu-btn cat-game" data-action="mahjong">
                     <span class="num">4</span>
-                    <span class="label">Mahjong (1-6)</span>
+                    <span class="label">Mahjong (TODOS 1-6)</span>
                 </button>
-                <button class="menu-btn cat-game" data-action="spinner" data-needs-param="spinner">
+                <button class="menu-btn cat-game" data-action="spinner">
                     <span class="num">5</span>
-                    <span class="label">Spinner (1-6)</span>
+                    <span class="label">Spinner (TODOS 1-6)</span>
                 </button>
-                <button class="menu-btn cat-game" data-action="normal" data-needs-param="normal">
+                <button class="menu-btn cat-game" data-action="normal">
                     <span class="num">6</span>
-                    <span class="label">Normal (1-2)</span>
+                    <span class="label">Normal (TODOS 1-2)</span>
                 </button>
                 <button class="menu-btn cat-game" data-action="addad">
                     <span class="num">7</span>
@@ -629,18 +629,7 @@
                 <span class="param-label">Quantos ciclos?</span>
                 <input type="number" class="param-input" id="inputNcycles" min="1" max="999" value="5" placeholder="N">
             </div>
-            <div class="param-row" id="paramMahjong">
-                <span class="param-label">Game (1-6):</span>
-                <input type="number" class="param-input" id="inputMahjong" min="1" max="6" value="1" placeholder="1-6">
-            </div>
-            <div class="param-row" id="paramSpinner">
-                <span class="param-label">Spinner (1-6):</span>
-                <input type="number" class="param-input" id="inputSpinner" min="1" max="6" value="1" placeholder="1-6">
-            </div>
-            <div class="param-row" id="paramNormal">
-                <span class="param-label">Normal (1-2):</span>
-                <input type="number" class="param-input" id="inputNormal" min="1" max="2" value="1" placeholder="1-2">
-            </div>
+
 
             <button class="execute-btn" id="executeBtn" disabled>
                 SELECIONE UMA OPCAO
@@ -946,9 +935,7 @@
         function getParam() {
             if (!selectedAction) return null;
             if (selectedAction === 'ncycles') return document.getElementById('inputNcycles').value;
-            if (selectedAction === 'mahjong') return document.getElementById('inputMahjong').value;
-            if (selectedAction === 'spinner') return document.getElementById('inputSpinner').value;
-            if (selectedAction === 'normal') return document.getElementById('inputNormal').value;
+
             return null;
         }
 

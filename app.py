@@ -1103,18 +1103,51 @@ def handle_start_bot(data):
                 n = int(param) if param else 1
                 bot.run_auto(cycles=n)
             elif action == "mahjong":
-                g = int(param) if param else 1
-                bot.claim_mahjong(g)
+                # Executar TODOS os Mahjong (1-6)
+                bot._emit_log("TURBO", "=" * 50)
+                bot._emit_log("TURBO", "MAHJONG - Executando TODOS (Game 1-6)")
+                bot._emit_log("TURBO", "=" * 50)
+                ok = 0
+                for g in range(1, 7):
+                    if bot.stop_requested:
+                        break
+                    if bot.claim_mahjong(g):
+                        ok += 1
+                    if g < 6:
+                        time.sleep(random.uniform(*DELAY_ENTRE_TAREFAS))
+                bot._emit_log("PTS", f"Mahjong completo: {ok}/6 jogos OK")
                 bot._emit_stats(force=True)
                 socketio.emit('task_complete', {'session_id': session_id}, room=session_id)
             elif action == "spinner":
-                s = int(param) if param else 1
-                bot.claim_spinner(s)
+                # Executar TODOS os Spinners (1-6)
+                bot._emit_log("TURBO", "=" * 50)
+                bot._emit_log("TURBO", "SPINNER - Executando TODOS (Spinner 1-6)")
+                bot._emit_log("TURBO", "=" * 50)
+                ok = 0
+                for s in range(1, 7):
+                    if bot.stop_requested:
+                        break
+                    if bot.claim_spinner(s):
+                        ok += 1
+                    if s < 6:
+                        time.sleep(random.uniform(*DELAY_ENTRE_TAREFAS))
+                bot._emit_log("PTS", f"Spinner completo: {ok}/6 spinners OK | +{bot.total_points:.2f} pts")
                 bot._emit_stats(force=True)
                 socketio.emit('task_complete', {'session_id': session_id}, room=session_id)
             elif action == "normal":
-                g = int(param) if param else 1
-                bot.claim_normal_game(g)
+                # Executar TODOS os Normal Games (1-2)
+                bot._emit_log("TURBO", "=" * 50)
+                bot._emit_log("TURBO", "NORMAL - Executando TODOS (Normal Game 1-2)")
+                bot._emit_log("TURBO", "=" * 50)
+                ok = 0
+                for g in range(1, 3):
+                    if bot.stop_requested:
+                        break
+                    if bot.claim_normal_game(g):
+                        ok += 1
+                    if g < 2:
+                        time.sleep(random.uniform(*DELAY_ENTRE_TAREFAS))
+                bot._emit_log("PTS", f"Normal completo: {ok}/2 jogos OK")
                 bot._emit_stats(force=True)
                 socketio.emit('task_complete', {'session_id': session_id}, room=session_id)
             elif action == "addad":
