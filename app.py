@@ -142,7 +142,9 @@ def add_security_headers(response):
 BASE_URL = "https://expressapi-2rffgzjdzq-uc.a.run.app"
 APP_NAME = "Hamster"
 APP_VERSION = 10810.0
-COOLDOWN_MINUTES = 7  # Reduzido: servidor libera antes de 10min
+COOLDOWN_MINUTES = 2  # Cooldown otimista: tenta cedo, servidor decide via 429
+SERVER_COOLDOWN_MINUTES = 5  # Cooldown real quando servidor retorna 429
+MAX_WAIT_SECONDS = 120  # Nunca esperar mais que 2 minutos
 
 FIREBASE_API_KEY = "AIzaSyDLwdoID0m70AY0Y2elYLoF_h49LAJwYe4"
 FIREBASE_TOKEN_URL = f"https://securetoken.googleapis.com/v1/token?key={FIREBASE_API_KEY}"
@@ -510,8 +512,8 @@ class HamsterFaucetBot:
             self._emit_stats()
             return True
         elif code == 429:
-            self._emit_log("WARN", f"{name}: Cooldown no servidor")
-            self._set_cooldown(name)
+            self._emit_log("WARN", f"{name}: Cooldown no servidor ({SERVER_COOLDOWN_MINUTES}min)")
+            self._set_cooldown(name, minutes=SERVER_COOLDOWN_MINUTES)
             with self._lock:
                 self.stats["mahjong_fail"] += 1
             self._emit_stats()
@@ -528,8 +530,8 @@ class HamsterFaucetBot:
                 self._quick_add_ad(context=f"{name} retry")
                 return self.claim_mahjong(game_num, retry=retry + 1)
             else:
-                self._emit_log("WARN", f"{name}: Block_List persistente. Cooldown 15min.")
-                self._set_cooldown(name, minutes=COOLDOWN_MINUTES + 5)
+                self._emit_log("WARN", f"{name}: Block_List persistente. Cooldown {SERVER_COOLDOWN_MINUTES}min.")
+                self._set_cooldown(name, minutes=SERVER_COOLDOWN_MINUTES)
                 with self._lock:
                     self.stats["mahjong_fail"] += 1
                 self._emit_stats()
@@ -606,8 +608,8 @@ class HamsterFaucetBot:
 
             # Cooldown do servidor - parar imediatamente
             if code == 429:
-                self._emit_log("WARN", f"{name}: Cooldown no servidor")
-                self._set_cooldown(name)
+                self._emit_log("WARN", f"{name}: Cooldown no servidor ({SERVER_COOLDOWN_MINUTES}min)")
+                self._set_cooldown(name, minutes=SERVER_COOLDOWN_MINUTES)
                 with self._lock:
                     self.stats["spinner_fail"] += 1
                 self._emit_stats()
@@ -673,8 +675,8 @@ class HamsterFaucetBot:
             self._emit_stats()
             return False
         elif code == 429:
-            self._emit_log("WARN", f"{name}: Cooldown no servidor")
-            self._set_cooldown(name)
+            self._emit_log("WARN", f"{name}: Cooldown no servidor ({SERVER_COOLDOWN_MINUTES}min)")
+            self._set_cooldown(name, minutes=SERVER_COOLDOWN_MINUTES)
             with self._lock:
                 self.stats["normal_fail"] += 1
             self._emit_stats()
@@ -691,8 +693,8 @@ class HamsterFaucetBot:
                 self._quick_add_ad(context=f"{name} retry")
                 return self.claim_normal_game(game_num, retry=retry + 1)
             else:
-                self._emit_log("WARN", f"{name}: Block_List persistente. Cooldown 15min.")
-                self._set_cooldown(name, minutes=COOLDOWN_MINUTES + 5)
+                self._emit_log("WARN", f"{name}: Block_List persistente. Cooldown {SERVER_COOLDOWN_MINUTES}min.")
+                self._set_cooldown(name, minutes=SERVER_COOLDOWN_MINUTES)
                 with self._lock:
                     self.stats["normal_fail"] += 1
                 self._emit_stats()
@@ -908,10 +910,11 @@ class HamsterFaucetBot:
 
         target_task, target_time = sorted_cds[target_idx]
         wait = max(0, (target_time - now).total_seconds())
-        # Sem buffer extra - confiar no cooldown reduzido
-        wait = max(wait, 0)
+        # Limitar espera ao MAX_WAIT_SECONDS (nunca ficar preso)
+        wait = min(wait, MAX_WAIT_SECONDS)
 
-        self._emit_log("WAIT", f"Esperando {int(wait // 60)}m {int(wait % 60)}s...")
+        m, s = divmod(int(wait), 60)
+        self._emit_log("WAIT", f"Esperando {m}m {s}s (max {MAX_WAIT_SECONDS // 60}m)...")
 
         total = int(wait)
         elapsed = 0
@@ -922,20 +925,23 @@ class HamsterFaucetBot:
             time.sleep(sleep_time)
             elapsed += sleep_time
 
-            # Emitir progresso a cada 60 segundos
-            if elapsed % 60 == 0:
+            # Emitir progresso a cada 30 segundos
+            if elapsed % 30 == 0:
                 remaining = total - elapsed
-                m, s = divmod(int(remaining), 60)
-                self._emit_log("WAIT", f"Restam {m}m {s}s...")
+                rm, rs = divmod(int(remaining), 60)
+                self._emit_log("WAIT", f"Restam {rm}m {rs}s...")
 
             # Verificar token a cada 60 segundos
             if elapsed % 60 == 0 and self.refresh_token:
                 self._auto_refresh_token()
 
-            # Verificar se já tem tarefas disponiveis
+            # Verificar se ja tem tarefas disponiveis
             if self._count_available() >= MIN_TASKS_TO_START_CYCLE:
                 self._emit_log("OK", "Tarefas disponiveis! Iniciando proximo ciclo...")
                 return
+
+        # Tempo esgotou - forcar proximo ciclo de qualquer forma
+        self._emit_log("OK", "Tempo de espera esgotou. Tentando proximo ciclo...")
 
     # ─────────────────────────────────────────────────────────
     #   STATUS & SUMMARY
