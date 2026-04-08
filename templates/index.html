@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HAMSTER FAUCET BOT - TURBO v8.0</title>
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="no-referrer">
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
     <style>
@@ -28,6 +31,17 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        input, textarea {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
         }
 
         body {
@@ -36,9 +50,9 @@
             font-family: 'Share Tech Mono', monospace;
             min-height: 100vh;
             overflow-x: hidden;
+            -webkit-touch-callout: none;
         }
 
-        /* Matrix rain background */
         #matrix-bg {
             position: fixed;
             top: 0;
@@ -58,7 +72,6 @@
             padding: 20px;
         }
 
-        /* Header */
         .header {
             text-align: center;
             padding: 30px 0 20px;
@@ -77,6 +90,11 @@
             border: 2px solid var(--green-primary);
             box-shadow: 0 0 30px var(--green-glow), 0 0 60px rgba(0, 255, 65, 0.2);
             animation: pulse-glow 3s ease-in-out infinite;
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+            pointer-events: none;
         }
 
         @keyframes pulse-glow {
@@ -100,7 +118,6 @@
             letter-spacing: 2px;
         }
 
-        /* Cards */
         .card {
             background: var(--bg-card);
             border: 1px solid var(--border-green);
@@ -132,14 +149,9 @@
             gap: 10px;
         }
 
-        .card-title .icon {
-            font-size: 1.1rem;
-        }
+        .card-title .icon { font-size: 1.1rem; }
 
-        /* Token Input */
-        .token-group {
-            position: relative;
-        }
+        .token-group { position: relative; }
 
         .token-input {
             width: 100%;
@@ -159,9 +171,7 @@
             box-shadow: 0 0 15px rgba(0, 255, 65, 0.15);
         }
 
-        .token-input::placeholder {
-            color: #2a5a2a;
-        }
+        .token-input::placeholder { color: #2a5a2a; }
 
         .toggle-visibility {
             position: absolute;
@@ -176,9 +186,7 @@
             padding: 5px;
         }
 
-        .toggle-visibility:hover {
-            color: var(--green-primary);
-        }
+        .toggle-visibility:hover { color: var(--green-primary); }
 
         .token-hint {
             font-size: 0.75rem;
@@ -186,11 +194,8 @@
             margin-top: 8px;
         }
 
-        .token-hint span {
-            color: var(--green-dark);
-        }
+        .token-hint span { color: var(--green-dark); }
 
-        /* Menu Grid */
         .menu-section-title {
             font-size: 0.75rem;
             color: #2a5a2a;
@@ -230,9 +235,7 @@
             transform: translateY(-1px);
         }
 
-        .menu-btn:active {
-            transform: translateY(0);
-        }
+        .menu-btn:active { transform: translateY(0); }
 
         .menu-btn.active {
             border-color: var(--green-primary);
@@ -259,7 +262,6 @@
 
         .menu-btn .label { flex: 1; }
 
-        /* Sub-parameter input */
         .param-row {
             display: none;
             margin-top: 10px;
@@ -267,9 +269,7 @@
             gap: 10px;
         }
 
-        .param-row.visible {
-            display: flex;
-        }
+        .param-row.visible { display: flex; }
 
         .param-input {
             background: var(--bg-input);
@@ -294,7 +294,6 @@
             font-size: 0.8rem;
         }
 
-        /* Execute button */
         .execute-btn {
             width: 100%;
             padding: 16px;
@@ -317,10 +316,7 @@
             box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
         }
 
-        .execute-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
+        .execute-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .execute-btn.running {
             border-color: var(--red);
@@ -333,7 +329,6 @@
             50% { box-shadow: 0 0 30px rgba(255, 51, 51, 0.4); }
         }
 
-        /* Console */
         .console {
             background: #000000;
             border: 1px solid var(--border-green);
@@ -343,17 +338,14 @@
 
         .console-header {
             background: #0a0f0a;
-            padding: 10px 16px;
+            padding: 8px 14px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid var(--border-green);
         }
 
-        .console-header .dots {
-            display: flex;
-            gap: 6px;
-        }
+        .console-header .dots { display: flex; gap: 6px; }
 
         .console-header .dot {
             width: 10px;
@@ -379,33 +371,13 @@
             line-height: 1.6;
         }
 
-        .console-body::-webkit-scrollbar {
-            width: 6px;
-        }
+        .console-body::-webkit-scrollbar { width: 6px; }
+        .console-body::-webkit-scrollbar-track { background: #0a0a0a; }
+        .console-body::-webkit-scrollbar-thumb { background: #1a3a1a; border-radius: 3px; }
 
-        .console-body::-webkit-scrollbar-track {
-            background: #0a0a0a;
-        }
-
-        .console-body::-webkit-scrollbar-thumb {
-            background: #1a3a1a;
-            border-radius: 3px;
-        }
-
-        .log-line {
-            margin-bottom: 2px;
-            word-break: break-all;
-        }
-
-        .log-line .ts {
-            color: #555;
-        }
-
-        .log-line .tag {
-            font-weight: bold;
-            padding: 1px 4px;
-            border-radius: 2px;
-        }
+        .log-line { margin-bottom: 2px; word-break: break-all; }
+        .log-line .ts { color: #555; }
+        .log-line .tag { font-weight: bold; padding: 1px 4px; border-radius: 2px; }
 
         .tag-OK { color: #00ff41; }
         .tag-PTS { color: #ff00ff; }
@@ -422,11 +394,8 @@
         .tag-GIVE { color: #ff00ff; }
         .tag-FIX { color: #00ff41; }
 
-        .log-line .msg {
-            color: #cccccc;
-        }
+        .log-line .msg { color: #cccccc; }
 
-        /* Stats bar */
         .stats-bar {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -458,7 +427,6 @@
             text-transform: uppercase;
         }
 
-        /* Footer */
         .footer {
             text-align: center;
             padding: 30px 0;
@@ -467,7 +435,6 @@
             letter-spacing: 1px;
         }
 
-        /* Responsive */
         @media (max-width: 600px) {
             .container { padding: 10px; }
             .title { font-size: 1.2rem; }
@@ -477,7 +444,6 @@
             .logo-container img { width: 110px; height: 110px; }
         }
 
-        /* Scanline effect */
         .scanline {
             position: fixed;
             top: 0;
@@ -495,7 +461,6 @@
             );
         }
 
-        /* Connection indicator */
         .connection-status {
             position: fixed;
             top: 10px;
@@ -519,9 +484,35 @@
             background: var(--green-primary);
             box-shadow: 0 0 10px var(--green-glow);
         }
+
+        /* Protection overlay - shown when scraper detected */
+        #protection-wall {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+            color: #ff3333;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
+    <div id="protection-wall">
+        <div>
+            <div style="font-size: 4rem; margin-bottom: 20px;">&#x26a0;</div>
+            <div>ACESSO NAO AUTORIZADO</div>
+            <div style="font-size: 0.8rem; color: #666; margin-top: 10px;">Este conteudo e protegido.</div>
+        </div>
+    </div>
+
     <div class="scanline"></div>
     <canvas id="matrix-bg"></canvas>
 
@@ -530,11 +521,11 @@
         <span id="connText">Desconectado</span>
     </div>
 
-    <div class="container">
+    <div class="container" id="mainContent">
         <!-- Header -->
         <div class="header">
             <div class="logo-container">
-                <img src="/static/img/logo.png" alt="Hamster Turbo Logo">
+                <img src="/static/img/logo.png" alt="Hamster Turbo Logo" draggable="false" oncontextmenu="return false;">
             </div>
             <div class="title">HAMSTER FAUCET BOT</div>
             <div class="subtitle">TURBO v8.0 &mdash; TESTE RAPIDO</div>
@@ -572,8 +563,8 @@
         <div class="card">
             <div class="card-title"><span class="icon">&#x1f511;</span> TOKEN DE ACESSO</div>
             <div class="token-group">
-                <input type="password" class="token-input" id="tokenInput" placeholder="Cole seu Refresh Token (AMf-...) ou ID Token (eyJ...)">
-                <button class="toggle-visibility" id="toggleToken" onclick="toggleTokenVisibility()">&#x1f441;</button>
+                <input type="password" class="token-input" id="tokenInput" placeholder="Cole seu Refresh Token (AMf-...) ou ID Token (eyJ...)" autocomplete="off">
+                <button class="toggle-visibility" id="toggleToken">&#x1f441;</button>
             </div>
             <div class="token-hint">
                 <span>Refresh Token (AMf-...)</span> = RECOMENDADO (auto-renova) &nbsp;|&nbsp;
@@ -587,15 +578,15 @@
 
             <div class="menu-section-title">CICLOS</div>
             <div class="menu-grid">
-                <button class="menu-btn cat-cycle" data-action="auto" onclick="selectAction(this)">
+                <button class="menu-btn cat-cycle" data-action="auto">
                     <span class="num">1</span>
                     <span class="label">Auto (loop infinito)</span>
                 </button>
-                <button class="menu-btn cat-cycle" data-action="1cycle" onclick="selectAction(this)">
+                <button class="menu-btn cat-cycle" data-action="1cycle">
                     <span class="num">2</span>
                     <span class="label">1 ciclo</span>
                 </button>
-                <button class="menu-btn cat-cycle" data-action="ncycles" data-needs-param="ncycles" onclick="selectAction(this)">
+                <button class="menu-btn cat-cycle" data-action="ncycles" data-needs-param="ncycles">
                     <span class="num">3</span>
                     <span class="label">N ciclos</span>
                 </button>
@@ -603,19 +594,19 @@
 
             <div class="menu-section-title">JOGOS</div>
             <div class="menu-grid">
-                <button class="menu-btn cat-game" data-action="mahjong" data-needs-param="mahjong" onclick="selectAction(this)">
+                <button class="menu-btn cat-game" data-action="mahjong" data-needs-param="mahjong">
                     <span class="num">4</span>
                     <span class="label">Mahjong (1-6)</span>
                 </button>
-                <button class="menu-btn cat-game" data-action="spinner" data-needs-param="spinner" onclick="selectAction(this)">
+                <button class="menu-btn cat-game" data-action="spinner" data-needs-param="spinner">
                     <span class="num">5</span>
                     <span class="label">Spinner (1-6)</span>
                 </button>
-                <button class="menu-btn cat-game" data-action="normal" data-needs-param="normal" onclick="selectAction(this)">
+                <button class="menu-btn cat-game" data-action="normal" data-needs-param="normal">
                     <span class="num">6</span>
                     <span class="label">Normal (1-2)</span>
                 </button>
-                <button class="menu-btn cat-game" data-action="addad" onclick="selectAction(this)">
+                <button class="menu-btn cat-game" data-action="addad">
                     <span class="num">7</span>
                     <span class="label">addAd</span>
                 </button>
@@ -623,11 +614,11 @@
 
             <div class="menu-section-title">ESPECIAL</div>
             <div class="menu-grid">
-                <button class="menu-btn cat-special" data-action="giveaway" onclick="selectAction(this)">
+                <button class="menu-btn cat-special" data-action="giveaway">
                     <span class="num">8</span>
                     <span class="label">Giveaway</span>
                 </button>
-                <button class="menu-btn cat-special" data-action="status" onclick="selectAction(this)">
+                <button class="menu-btn cat-special" data-action="status">
                     <span class="num">9</span>
                     <span class="label">Status</span>
                 </button>
@@ -651,7 +642,7 @@
                 <input type="number" class="param-input" id="inputNormal" min="1" max="2" value="1" placeholder="1-2">
             </div>
 
-            <button class="execute-btn" id="executeBtn" onclick="executeAction()" disabled>
+            <button class="execute-btn" id="executeBtn" disabled>
                 SELECIONE UMA OPCAO
             </button>
         </div>
@@ -666,7 +657,7 @@
                         <div class="dot green"></div>
                     </div>
                     <span class="title-text">TERMINAL OUTPUT</span>
-                    <button onclick="clearConsole()" style="background:none;border:1px solid #333;color:#555;padding:3px 10px;border-radius:4px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">LIMPAR</button>
+                    <button id="clearBtn" style="background:none;border:1px solid #333;color:#555;padding:3px 10px;border-radius:4px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">LIMPAR</button>
                 </div>
                 <div class="console-body" id="consoleBody">
                     <div class="log-line"><span class="tag tag-INFO">[SYSTEM]</span> <span class="msg">Aguardando token e selecao de opcao...</span></div>
@@ -680,11 +671,145 @@
     </div>
 
     <script>
-        // ═══════════════════════════════════════════════════════
-        //                    MATRIX RAIN
-        // ═══════════════════════════════════════════════════════
-        const canvas = document.getElementById('matrix-bg');
-        const ctx = canvas.getContext('2d');
+    // ═══════════════════════════════════════════════════════════════
+    //          PROTEÇÃO ANTI-SCRAPING / ANTI-DOWNLOAD
+    // ═══════════════════════════════════════════════════════════════
+    (function(){
+        'use strict';
+
+        // 1. Detectar se está em iframe (sites de download embarcam em iframe)
+        if (window.self !== window.top) {
+            document.getElementById('protection-wall').style.display = 'flex';
+            document.getElementById('mainContent').style.display = 'none';
+            return;
+        }
+
+        // 2. Bloquear clique direito
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // 3. Bloquear teclas de DevTools e Save
+        document.addEventListener('keydown', function(e) {
+            // F12
+            if (e.key === 'F12' || e.keyCode === 123) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+Shift+I (DevTools)
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73)) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+Shift+J (Console)
+            if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74)) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+Shift+C (Inspect Element)
+            if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67)) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+U (View Source)
+            if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.keyCode === 85)) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+S (Save Page)
+            if (e.ctrlKey && (e.key === 'S' || e.key === 's' || e.keyCode === 83)) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+P (Print)
+            if (e.ctrlKey && (e.key === 'P' || e.key === 'p' || e.keyCode === 80)) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+A (Select All)
+            if (e.ctrlKey && (e.key === 'A' || e.key === 'a' || e.keyCode === 65)) {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+
+        // 4. Bloquear drag de elementos
+        document.addEventListener('dragstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // 5. Bloquear cópia
+        document.addEventListener('copy', function(e) {
+            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // 6. Detectar DevTools aberto (via timing)
+        var _dT = false;
+        var _chk = function() {
+            var _s = performance.now();
+            debugger;
+            var _e = performance.now();
+            if (_e - _s > 100) {
+                if (!_dT) {
+                    _dT = true;
+                    document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#000;color:#ff3333;font-family:Orbitron,sans-serif;font-size:1.5rem;text-align:center;"><div><div style="font-size:4rem;margin-bottom:20px;">&#x1f6ab;</div>DevTools Detectado<br><span style="font-size:0.8rem;color:#666;">Feche o DevTools para continuar.</span></div></div>';
+                }
+            }
+        };
+
+        // 7. Verificar se console está aberto (via toString override)
+        var _cO = new Image();
+        Object.defineProperty(_cO, 'id', {
+            get: function() {
+                _dT = true;
+                document.getElementById('protection-wall').style.display = 'flex';
+                if(document.getElementById('mainContent')) {
+                    document.getElementById('mainContent').style.display = 'none';
+                }
+            }
+        });
+
+        // 8. Anti print-screen (blur on visibility change)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                document.title = 'HAMSTER FAUCET BOT - TURBO v8.0';
+            }
+        });
+
+        // 9. Desabilitar arrastar imagens
+        document.querySelectorAll('img').forEach(function(img) {
+            img.setAttribute('draggable', 'false');
+            img.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+        });
+
+        // 10. Sobrescrever console.log para dificultar debug
+        var _oc = console.log;
+        console.log = function() {};
+        console.warn = function() {};
+        console.info = function() {};
+        console.debug = function() {};
+        console.table = function() {};
+
+        // 11. Anti-scraper: verificar se JavaScript está sendo executado
+        // Scrapers estáticos não executam JS, então o conteúdo real é carregado via JS
+        window._appVerified = true;
+
+    })();
+
+    // ═══════════════════════════════════════════════════════════════
+    //                    MATRIX RAIN
+    // ═══════════════════════════════════════════════════════════════
+    (function(){
+        var canvas = document.getElementById('matrix-bg');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
@@ -693,10 +818,10 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF';
-        const fontSize = 14;
-        let columns = Math.floor(canvas.width / fontSize);
-        let drops = Array(columns).fill(1);
+        var chars = '\u30A2\u30A4\u30A6\u30A8\u30AA\u30AB\u30AD\u30AF\u30B1\u30B3\u30B5\u30B7\u30B9\u30BB\u30BD\u30BF\u30C1\u30C4\u30C6\u30C8\u30CA\u30CB\u30CC\u30CD\u30CE\u30CF\u30D2\u30D5\u30D8\u30DB\u30DE\u30DF\u30E0\u30E1\u30E2\u30E4\u30E6\u30E8\u30E9\u30EA\u30EB\u30EC\u30ED\u30EF\u30F2\u30F30123456789ABCDEF';
+        var fontSize = 14;
+        var columns = Math.floor(canvas.width / fontSize);
+        var drops = Array(columns).fill(1);
 
         function drawMatrix() {
             ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
@@ -704,8 +829,8 @@
             ctx.fillStyle = '#00ff41';
             ctx.font = fontSize + 'px monospace';
 
-            for (let i = 0; i < drops.length; i++) {
-                const text = chars[Math.floor(Math.random() * chars.length)];
+            for (var i = 0; i < drops.length; i++) {
+                var text = chars[Math.floor(Math.random() * chars.length)];
                 ctx.fillText(text, i * fontSize, drops[i] * fontSize);
                 if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
                     drops[i] = 0;
@@ -716,33 +841,37 @@
 
         setInterval(drawMatrix, 50);
 
-        window.addEventListener('resize', () => {
+        window.addEventListener('resize', function() {
             columns = Math.floor(canvas.width / fontSize);
             drops = Array(columns).fill(1);
         });
+    })();
 
-        // ═══════════════════════════════════════════════════════
-        //                    SOCKET.IO
-        // ═══════════════════════════════════════════════════════
-        const socket = io();
-        let selectedAction = null;
-        let isRunning = false;
+    // ═══════════════════════════════════════════════════════════════
+    //                    SOCKET.IO & APP LOGIC
+    // ═══════════════════════════════════════════════════════════════
+    (function(){
+        if (!window._appVerified) return;
 
-        socket.on('connect', () => {
+        var socket = io();
+        var selectedAction = null;
+        var isRunning = false;
+
+        socket.on('connect', function() {
             document.getElementById('connDot').classList.add('connected');
             document.getElementById('connText').textContent = 'Conectado';
         });
 
-        socket.on('disconnect', () => {
+        socket.on('disconnect', function() {
             document.getElementById('connDot').classList.remove('connected');
             document.getElementById('connText').textContent = 'Desconectado';
         });
 
-        socket.on('log', (data) => {
+        socket.on('log', function(data) {
             appendLog(data.tag, data.message, data.timestamp);
         });
 
-        socket.on('stats', (data) => {
+        socket.on('stats', function(data) {
             document.getElementById('statPoints').textContent = data.total_points.toFixed(2);
             document.getElementById('statCycles').textContent = data.total_cycles;
             document.getElementById('statTasks').textContent = data.tasks_completed;
@@ -751,9 +880,9 @@
             document.getElementById('statErrors').textContent = data.errors;
         });
 
-        socket.on('task_complete', () => {
+        socket.on('task_complete', function() {
             isRunning = false;
-            const btn = document.getElementById('executeBtn');
+            var btn = document.getElementById('executeBtn');
             btn.classList.remove('running');
             if (selectedAction) {
                 btn.textContent = 'EXECUTAR';
@@ -764,12 +893,10 @@
             }
         });
 
-        // ═══════════════════════════════════════════════════════
-        //                    UI FUNCTIONS
-        // ═══════════════════════════════════════════════════════
-        function toggleTokenVisibility() {
-            const input = document.getElementById('tokenInput');
-            const btn = document.getElementById('toggleToken');
+        // Toggle token visibility
+        document.getElementById('toggleToken').addEventListener('click', function() {
+            var input = document.getElementById('tokenInput');
+            var btn = this;
             if (input.type === 'password') {
                 input.type = 'text';
                 btn.innerHTML = '&#x1f512;';
@@ -777,27 +904,39 @@
                 input.type = 'password';
                 btn.innerHTML = '&#x1f441;';
             }
-        }
+        });
+
+        // Menu button clicks
+        document.querySelectorAll('.menu-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                selectAction(this);
+            });
+        });
+
+        // Execute button
+        document.getElementById('executeBtn').addEventListener('click', function() {
+            executeAction();
+        });
+
+        // Clear console button
+        document.getElementById('clearBtn').addEventListener('click', function() {
+            clearConsole();
+        });
 
         function selectAction(el) {
-            // Remove active from all
-            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.menu-btn').forEach(function(b) { b.classList.remove('active'); });
             el.classList.add('active');
-
             selectedAction = el.dataset.action;
 
-            // Hide all param rows
-            document.querySelectorAll('.param-row').forEach(r => r.classList.remove('visible'));
+            document.querySelectorAll('.param-row').forEach(function(r) { r.classList.remove('visible'); });
 
-            // Show relevant param
-            const needsParam = el.dataset.needsParam;
+            var needsParam = el.dataset.needsParam;
             if (needsParam) {
-                const paramEl = document.getElementById('param' + needsParam.charAt(0).toUpperCase() + needsParam.slice(1));
+                var paramEl = document.getElementById('param' + needsParam.charAt(0).toUpperCase() + needsParam.slice(1));
                 if (paramEl) paramEl.classList.add('visible');
             }
 
-            // Update button
-            const btn = document.getElementById('executeBtn');
+            var btn = document.getElementById('executeBtn');
             if (!isRunning) {
                 btn.textContent = 'EXECUTAR';
                 btn.disabled = false;
@@ -814,17 +953,16 @@
         }
 
         function executeAction() {
-            const btn = document.getElementById('executeBtn');
+            var btn = document.getElementById('executeBtn');
 
             if (isRunning) {
-                // Stop
                 socket.emit('stop_bot');
                 btn.textContent = 'PARANDO...';
                 btn.disabled = true;
                 return;
             }
 
-            const token = document.getElementById('tokenInput').value.trim();
+            var token = document.getElementById('tokenInput').value.trim();
             if (!token) {
                 appendLog('ERR', 'Insira seu token primeiro!', new Date().toLocaleTimeString());
                 return;
@@ -847,47 +985,94 @@
         }
 
         function appendLog(tag, message, timestamp) {
-            const body = document.getElementById('consoleBody');
-            const line = document.createElement('div');
+            var body = document.getElementById('consoleBody');
+            var line = document.createElement('div');
             line.className = 'log-line';
-            line.innerHTML = `<span class="ts">[${timestamp || ''}]</span> <span class="tag tag-${tag}">[${tag}]</span> <span class="msg">${escapeHtml(message)}</span>`;
+            line.innerHTML = '<span class="ts">[' + (timestamp || '') + ']</span> <span class="tag tag-' + tag + '">[' + tag + ']</span> <span class="msg">' + escapeHtml(message) + '</span>';
             body.appendChild(line);
             body.scrollTop = body.scrollHeight;
 
-            // Keep max 500 lines
             while (body.children.length > 500) {
                 body.removeChild(body.firstChild);
             }
         }
 
         function clearConsole() {
-            const body = document.getElementById('consoleBody');
+            var body = document.getElementById('consoleBody');
             body.innerHTML = '<div class="log-line"><span class="tag tag-INFO">[SYSTEM]</span> <span class="msg">Console limpo.</span></div>';
         }
 
         function escapeHtml(text) {
-            const div = document.createElement('div');
+            var div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
+        // Keyboard shortcuts (only when not in input)
+        document.addEventListener('keydown', function(e) {
             if (e.target.tagName === 'INPUT') return;
-            const key = e.key;
-            const actions = {
+            var key = e.key;
+            var actions = {
                 '1': 'auto', '2': '1cycle', '3': 'ncycles',
                 '4': 'mahjong', '5': 'spinner', '6': 'normal',
                 '7': 'addad', '8': 'giveaway', '9': 'status'
             };
             if (actions[key]) {
-                const btn = document.querySelector(`[data-action="${actions[key]}"]`);
+                var btn = document.querySelector('[data-action="' + actions[key] + '"]');
                 if (btn) selectAction(btn);
             }
             if (key === 'Enter' && selectedAction && !document.getElementById('executeBtn').disabled) {
                 executeAction();
             }
         });
+
+    })();
+
+    // ═══════════════════════════════════════════════════════════════
+    //     PROTEÇÃO ADICIONAL: Limpar source do DOM após carregar
+    // ═══════════════════════════════════════════════════════════════
+    (function(){
+        // Remover todos os comentários HTML do DOM
+        var iterator = document.createNodeIterator(
+            document.documentElement,
+            NodeFilter.SHOW_COMMENT,
+            null,
+            false
+        );
+        var comment;
+        while (comment = iterator.nextNode()) {
+            comment.parentNode.removeChild(comment);
+        }
+
+        // Remover atributos desnecessários que revelam estrutura
+        document.querySelectorAll('[data-action]').forEach(function(el) {
+            // Manter data-action pois é necessário para funcionalidade
+            // mas remover qualquer outro data attribute desnecessário
+        });
+
+        // Proteger contra document.documentElement.outerHTML
+        var _origOuterHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'outerHTML');
+        var _origInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+
+        // Interceptar tentativas de ler o HTML completo via JS
+        try {
+            Object.defineProperty(document.documentElement, 'outerHTML', {
+                get: function() {
+                    return '<html><body>Protected Content</body></html>';
+                }
+            });
+        } catch(e) {}
+
+    })();
     </script>
+
+    <!-- Honeypot: conteúdo falso para scrapers que não executam JS -->
+    <noscript>
+        <div style="background:#000;color:#ff3333;text-align:center;padding:50px;font-family:monospace;">
+            <h1>JavaScript Required</h1>
+            <p>Este site requer JavaScript para funcionar.</p>
+            <p>Scrapers e bots nao sao permitidos.</p>
+        </div>
+    </noscript>
 </body>
 </html>

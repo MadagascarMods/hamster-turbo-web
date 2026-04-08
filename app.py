@@ -15,14 +15,155 @@ import random
 import threading
 import base64
 import uuid
+import re
+import hashlib
 import requests as http_requests
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify
+from functools import wraps
+from flask import Flask, render_template, request, jsonify, abort, make_response, Response
 from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'hamster-turbo-v8-secret')
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+
+# ═══════════════════════════════════════════════════════════════
+#                    PROTEÇÃO ANTI-SCRAPING
+# ═══════════════════════════════════════════════════════════════
+
+# Lista de User-Agents de bots/scrapers conhecidos
+BLOCKED_BOTS = [
+    'wget', 'curl', 'httrack', 'saveweb', 'webzip', 'offline',
+    'teleport', 'webcopy', 'scrapy', 'python-requests', 'httpx',
+    'aiohttp', 'node-fetch', 'axios', 'got/', 'undici',
+    'phantomjs', 'headlesschrome', 'slimerjs', 'casperjs',
+    'webripper', 'sitecopy', 'grab', 'webstripper', 'blackwidow',
+    'netspider', 'webcopier', 'webzip', 'emailsiphon', 'emailwolf',
+    'extractorpro', 'copier', 'collector', 'sucker', 'nikto',
+    'sqlmap', 'nmap', 'masscan', 'dirbuster', 'gobuster',
+    'archive.org_bot', 'ia_archiver', 'nutch', 'crawler',
+    'spider', 'bot/', 'slurp', 'mediapartners',
+    'facebookexternalhit', 'twitterbot', 'linkedinbot',
+    'whatsapp', 'telegrambot', 'discordbot', 'embedly',
+    'quora link', 'outbrain', 'pinterest', 'semrush',
+    'dotbot', 'ahrefsbot', 'mj12bot', 'rogerbot',
+    'screaming frog', 'seokicks', 'sistrix',
+    'saveweb2zip', 'webarchive', 'wayback',
+]
+
+# Rate limiting simples em memória
+rate_limit_store = {}
+RATE_LIMIT_WINDOW = 60  # segundos
+RATE_LIMIT_MAX = 30  # requests por janela
+
+
+def is_bot(user_agent):
+    """Verifica se o User-Agent é de um bot/scraper conhecido."""
+    if not user_agent:
+        return True
+    ua_lower = user_agent.lower()
+    for bot in BLOCKED_BOTS:
+        if bot in ua_lower:
+            return True
+    # Verificar se não tem User-Agent de navegador real
+    browser_indicators = ['mozilla', 'chrome', 'safari', 'firefox', 'edge', 'opera']
+    if not any(b in ua_lower for b in browser_indicators):
+        return True
+    return False
+
+
+def check_rate_limit(ip):
+    """Rate limiting por IP."""
+    now = time.time()
+    if ip not in rate_limit_store:
+        rate_limit_store[ip] = []
+    # Limpar entradas antigas
+    rate_limit_store[ip] = [t for t in rate_limit_store[ip] if now - t < RATE_LIMIT_WINDOW]
+    if len(rate_limit_store[ip]) >= RATE_LIMIT_MAX:
+        return False
+    rate_limit_store[ip].append(now)
+    return True
+
+
+# Gerar nonce dinâmico para CSP
+def generate_nonce():
+    return base64.b64encode(os.urandom(16)).decode('utf-8')
+
+
+@app.before_request
+def security_middleware():
+    """Middleware de segurança que roda antes de cada request."""
+    # Permitir WebSocket e static files
+    if request.path.startswith('/socket.io') or request.path.startswith('/static/'):
+        return
+
+    user_agent = request.headers.get('User-Agent', '')
+
+    # 1. Bloquear bots/scrapers
+    if is_bot(user_agent):
+        # Retornar página falsa/vazia para confundir scrapers
+        return Response(
+            '<html><head><title>403</title></head><body><h1>Access Denied</h1></body></html>',
+            status=403,
+            content_type='text/html'
+        )
+
+    # 2. Rate limiting
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    if not check_rate_limit(client_ip):
+        return Response('Too Many Requests', status=429)
+
+    # 3. Bloquear se vier de iframe (clickjacking)
+    # Verificar Sec-Fetch headers (navegadores modernos)
+    sec_fetch_dest = request.headers.get('Sec-Fetch-Dest', '')
+    if sec_fetch_dest in ['iframe', 'embed', 'object']:
+        return Response('Embedding not allowed', status=403)
+
+
+@app.after_request
+def add_security_headers(response):
+    """Adicionar headers de segurança em todas as respostas."""
+    # Anti-iframe / Anti-embedding
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self' ws: wss:; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self';"
+    )
+
+    # Prevenir MIME sniffing
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+
+    # XSS Protection
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+
+    # Referrer Policy - não vazar URLs
+    response.headers['Referrer-Policy'] = 'no-referrer'
+
+    # Permissions Policy - restringir APIs do navegador
+    response.headers['Permissions-Policy'] = (
+        'camera=(), microphone=(), geolocation=(), '
+        'payment=(), usb=(), magnetometer=(), gyroscope=()'
+    )
+
+    # Strict Transport Security
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+
+    # Anti-cache para conteúdo dinâmico (dificulta cache de scrapers)
+    if request.path == '/':
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
+    return response
 
 # ═══════════════════════════════════════════════════════════════
 #                      CONFIGURAÇÕES
