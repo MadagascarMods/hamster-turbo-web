@@ -156,8 +156,9 @@ HEADERS = {
 # TURBO OPTIMIZED: Delays mínimos para máxima velocidade
 DELAY_ENTRE_TAREFAS = (0.5, 1.5)      # Reduzido de (1, 3)
 DELAY_APOS_AD = (0.3, 0.8)            # Reduzido de (1, 2)
-RETRY_BLOCK_DELAY = (2, 5)            # Reduzido de (5, 15)
-MAX_RETRIES_BLOCK = 3
+RETRY_BLOCK_DELAY = (1, 3)             # Mais agressivo para retries
+MAX_RETRIES_BLOCK = 5                  # Aumentado de 3 para 5
+MAX_RETRIES_SPINNER = 8                # Spinner: até 8 tentativas (forçar até conseguir)
 MIN_TASKS_TO_START_CYCLE = 3
 TOKEN_REFRESH_MARGIN = 300
 HTTP_TIMEOUT = 10                      # Timeout mais curto para requests
@@ -555,14 +556,14 @@ class HamsterFaucetBot:
             return False
 
         cfg = SPINNER_GAMES[name]
+        # Gerar pontos novos a cada tentativa para variar
         points = round(random.uniform(5000, 20000), 14)
 
         # v8.0: SEMPRE garantir Block_List antes de cada spinner
         self._ensure_block_list(context=name)
 
-        # addAd antes do claim
-        if retry == 0:
-            self._quick_add_ad(context=name)
+        # addAd antes do claim (sempre em retries também para forçar)
+        self._quick_add_ad(context=f"{name}" + (f" retry {retry}" if retry > 0 else ""))
 
         self._emit_log("SPIN", f"{name}: addPointsI ({points:.2f} pts)..." + (f" (retry {retry})" if retry > 0 else ""))
 
@@ -581,7 +582,7 @@ class HamsterFaucetBot:
 
         # SUCESSO
         if code == 200 and data.get("status") and "Added" in msg:
-            self._emit_log("PTS", f"{name}: +{points:.2f} pts PERMANENTES!")
+            self._emit_log("PTS", f"{name}: +{points:.2f} pts PERMANENTES!" + (f" (conseguiu na tentativa {retry + 1})" if retry > 0 else ""))
             self._set_cooldown(name)
             with self._lock:
                 self.total_points += points
@@ -590,7 +591,7 @@ class HamsterFaucetBot:
             self._emit_stats()
             return True
 
-        # Cooldown
+        # Cooldown do servidor
         if code == 429:
             self._emit_log("WARN", f"{name}: Cooldown no servidor")
             self._set_cooldown(name)
@@ -599,16 +600,15 @@ class HamsterFaucetBot:
             self._emit_stats()
             return False
 
-        # Block_List NOT_FOUND
+        # Block_List NOT_FOUND - forçar até MAX_RETRIES_SPINNER
         if "NOT_FOUND" in msg and "Block_List" in msg:
-            if retry < MAX_RETRIES_BLOCK:
-                self._emit_log("RETRY", f"{name}: Block_List NOT_FOUND. Recriando... ({retry + 1}/{MAX_RETRIES_BLOCK})")
+            if retry < MAX_RETRIES_SPINNER:
+                self._emit_log("RETRY", f"{name}: Block_List NOT_FOUND. Forcando... ({retry + 1}/{MAX_RETRIES_SPINNER})")
                 self._ensure_block_list(context=f"{name} retry")
-                time.sleep(random.randint(1, 3))  # Reduzido de (2, 5)
-                self._quick_add_ad(context=f"{name} retry")
+                time.sleep(random.uniform(0.5, 2))
                 return self.claim_spinner(spinner_num, retry=retry + 1)
             else:
-                self._emit_log("ERR", f"{name}: Block_List NOT_FOUND persistente apos {MAX_RETRIES_BLOCK} tentativas")
+                self._emit_log("ERR", f"{name}: Block_List NOT_FOUND persistente apos {MAX_RETRIES_SPINNER} tentativas")
                 self._set_cooldown(name, minutes=COOLDOWN_MINUTES + 5)
                 with self._lock:
                     self.tasks_blocked += 1
@@ -616,27 +616,31 @@ class HamsterFaucetBot:
                 self._emit_stats()
                 return False
 
-        # Block_List genérico
+        # Block_List genérico - forçar até MAX_RETRIES_SPINNER
         if "Block_List" in msg:
             with self._lock:
                 self.tasks_blocked += 1
-            if retry < MAX_RETRIES_BLOCK:
-                delay = random.randint(*RETRY_BLOCK_DELAY)
-                self._emit_log("RETRY", f"{name}: Block_List. Retry em {delay}s... ({retry + 1}/{MAX_RETRIES_BLOCK})")
+            if retry < MAX_RETRIES_SPINNER:
+                delay = random.uniform(*RETRY_BLOCK_DELAY)
+                self._emit_log("RETRY", f"{name}: Block_List. Forcando... ({retry + 1}/{MAX_RETRIES_SPINNER}) em {delay:.0f}s")
                 time.sleep(delay)
                 self._ensure_block_list(context=f"{name} retry")
-                self._quick_add_ad(context=f"{name} retry")
                 return self.claim_spinner(spinner_num, retry=retry + 1)
             else:
-                self._emit_log("WARN", f"{name}: Block_List persistente. Cooldown 15min.")
+                self._emit_log("WARN", f"{name}: Block_List persistente apos {MAX_RETRIES_SPINNER} tentativas. Cooldown 15min.")
                 self._set_cooldown(name, minutes=COOLDOWN_MINUTES + 5)
                 with self._lock:
                     self.stats["spinner_fail"] += 1
                 self._emit_stats()
                 return False
 
-        # Outro erro
-        self._emit_log("ERR", f"{name}: HTTP {code} - {msg}")
+        # Outro erro - tentar novamente se ainda tem retries
+        if retry < MAX_RETRIES_SPINNER:
+            self._emit_log("RETRY", f"{name}: Erro HTTP {code}. Tentando novamente... ({retry + 1}/{MAX_RETRIES_SPINNER})")
+            time.sleep(random.uniform(1, 2))
+            return self.claim_spinner(spinner_num, retry=retry + 1)
+
+        self._emit_log("ERR", f"{name}: HTTP {code} - {msg} (apos {MAX_RETRIES_SPINNER} tentativas)")
         with self._lock:
             self.errors += 1
             self.stats["spinner_fail"] += 1
