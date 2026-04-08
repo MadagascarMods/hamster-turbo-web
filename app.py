@@ -142,7 +142,7 @@ def add_security_headers(response):
 BASE_URL = "https://expressapi-2rffgzjdzq-uc.a.run.app"
 APP_NAME = "Hamster"
 APP_VERSION = 10810.0
-COOLDOWN_MINUTES = 10
+COOLDOWN_MINUTES = 7  # Reduzido: servidor libera antes de 10min
 
 FIREBASE_API_KEY = "AIzaSyDLwdoID0m70AY0Y2elYLoF_h49LAJwYe4"
 FIREBASE_TOKEN_URL = f"https://securetoken.googleapis.com/v1/token?key={FIREBASE_API_KEY}"
@@ -159,7 +159,7 @@ DELAY_APOS_AD = (0.3, 0.8)            # Reduzido de (1, 2)
 RETRY_BLOCK_DELAY = (1, 3)             # Mais agressivo para retries
 MAX_RETRIES_BLOCK = 5                  # Aumentado de 3 para 5
 MAX_RETRIES_SPINNER = 4                # Spinner: 4 tentativas (equilibrio entre forçar e não travar)
-MIN_TASKS_TO_START_CYCLE = 3
+MIN_TASKS_TO_START_CYCLE = 1  # Comecar ciclo assim que 1 tarefa estiver disponivel
 TOKEN_REFRESH_MARGIN = 300
 HTTP_TIMEOUT = 10                      # Timeout mais curto para requests
 
@@ -905,22 +905,22 @@ class HamsterFaucetBot:
 
         target_task, target_time = sorted_cds[target_idx]
         wait = max(0, (target_time - now).total_seconds())
-        wait += random.randint(3, 8)  # Reduzido de (5, 15)
+        # Sem buffer extra - confiar no cooldown reduzido
+        wait = max(wait, 0)
 
         self._emit_log("WAIT", f"Esperando {int(wait // 60)}m {int(wait % 60)}s...")
 
-        # Emitir progresso a cada 10 segundos em vez de cada 1 segundo
         total = int(wait)
         elapsed = 0
-        check_interval = 5  # Verificar a cada 5 segundos
+        check_interval = 5
 
         while elapsed < total and not self.stop_requested:
             sleep_time = min(check_interval, total - elapsed)
             time.sleep(sleep_time)
             elapsed += sleep_time
 
-            # Emitir progresso a cada 30 segundos
-            if elapsed % 30 == 0:
+            # Emitir progresso a cada 60 segundos
+            if elapsed % 60 == 0:
                 remaining = total - elapsed
                 m, s = divmod(int(remaining), 60)
                 self._emit_log("WAIT", f"Restam {m}m {s}s...")
@@ -929,7 +929,7 @@ class HamsterFaucetBot:
             if elapsed % 60 == 0 and self.refresh_token:
                 self._auto_refresh_token()
 
-            # Verificar se já tem tarefas suficientes
+            # Verificar se já tem tarefas disponiveis
             if self._count_available() >= MIN_TASKS_TO_START_CYCLE:
                 self._emit_log("OK", "Tarefas disponiveis! Iniciando proximo ciclo...")
                 return
