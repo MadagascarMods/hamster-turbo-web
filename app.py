@@ -5,6 +5,9 @@ HAMSTER FAUCET BOT TURBO v8.0 - Web Interface
 Backend Flask com WebSocket (Flask-SocketIO) para execução em tempo real.
 """
 
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import json
 import time
@@ -19,7 +22,7 @@ from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'hamster-turbo-v8-secret')
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # ═══════════════════════════════════════════════════════════════
 #                      CONFIGURAÇÕES

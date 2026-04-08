@@ -20,7 +20,8 @@ Interface web para o Hamster Faucet Bot Turbo v8.0 com terminal em tempo real vi
    - **Name**: `hamster-turbo-bot`
    - **Runtime**: `Python`
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --workers 1 --bind 0.0.0.0:$PORT app:app`
+   - **Start Command**: `gunicorn --worker-class eventlet --workers 1 --bind 0.0.0.0:$PORT app:app`
+   - **Environment Variable**: `PYTHON_VERSION` = `3.11.11`
 5. Clique em **Create Web Service**
 
 ## Execução Local
